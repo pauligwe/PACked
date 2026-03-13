@@ -17,6 +17,40 @@ DB_PATH = os.path.join(BASE_DIR, "occupancy.db")
 # Local timezone for bucketing/labels (Waterloo, Ontario).
 LOCAL_TZ = ZoneInfo("America/Toronto")
 
+# Weekly base hours by building, in local time, using decimal hours.
+# Day index: 0=Sunday .. 6=Saturday.
+# close times after midnight are expressed as 24.5 (00:30 next day), etc.
+BUILDING_WEEKLY_HOURS: Dict[str, Dict[int, Dict[str, float]]] = {
+    "PAC": {
+        0: {"open": 9.0, "close": 24.5},  # Sunday
+        1: {"open": 6.0, "close": 24.5},  # Monday
+        2: {"open": 6.0, "close": 24.5},  # Tuesday
+        3: {"open": 6.0, "close": 24.5},  # Wednesday
+        4: {"open": 6.0, "close": 24.5},  # Thursday
+        5: {"open": 6.0, "close": 24.5},  # Friday
+        6: {"open": 9.0, "close": 24.5},  # Saturday
+    },
+    "CIF": {
+        0: {"open": 9.0, "close": 24.5},  # Sunday
+        1: {"open": 14.5, "close": 24.5},  # Monday 2:30 PM–12:30 AM
+        2: {"open": 14.5, "close": 24.5},  # Tuesday
+        3: {"open": 14.5, "close": 24.5},  # Wednesday
+        4: {"open": 14.5, "close": 24.5},  # Thursday
+        5: {"open": 13.0, "close": 24.5},  # Friday 1:00 PM–12:30 AM
+        6: {"open": 9.0, "close": 22.5},  # Saturday 9:00 AM–10:30 PM
+    },
+}
+
+# Map facility names from occupancy page to building keys above.
+FACILITY_TO_BUILDING: Dict[str, str] = {
+    "CIF Fitness Centre": "CIF",
+    "PAC - 1st Floor - Free Weights": "PAC",
+    "PAC - 1st Floor - Functional": "PAC",
+    "PAC - 2nd Floor - Cardio": "PAC",
+    "PAC - 2nd Floor - Weight Machines": "PAC",
+    "Warrior Zone": "PAC",
+}
+
 
 def get_db_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
@@ -115,6 +149,31 @@ def occupancy_to_label(pct: float) -> str:
     if pct < 88:
         return "Very busy"
     return "Packed"
+
+
+def is_slot_open(facility_name: str, day_index: int, hour: int) -> bool:
+    """
+    Return True if the full [hour, hour+1) slot is within the base weekly hours
+    for the facility's building. If hours are unknown, default to True.
+    """
+    building = FACILITY_TO_BUILDING.get(facility_name)
+    if building is None:
+        return True
+
+    building_hours = BUILDING_WEEKLY_HOURS.get(building)
+    if not building_hours:
+        return True
+
+    hours = building_hours.get(day_index)
+    if not hours:
+        return True
+
+    open_h = hours["open"]
+    close_h = hours["close"]
+    slot_start = float(hour)
+    slot_end = float(hour + 1)
+
+    return open_h <= slot_start and slot_end <= close_h
 
 
 def _row_to_reading(row: sqlite3.Row) -> Reading:
@@ -221,15 +280,15 @@ def get_history(
 
 def compute_heatmap_for_facility(facility_name: str) -> List[List[Optional[float]]]:
     """
-    Compute a 7x17 grid of average occupancy_pct values for the given facility.
-    Days: 0-6 (Sunday-Saturday), Hours: 6-22 inclusive.
+    Compute a 7x18 grid of average occupancy_pct values for the given facility.
+    Days: 0-6 (Sunday-Saturday), Hours: 6-23 inclusive (6am–11pm local time).
     """
     # Initialize sums and counts
-    sums: List[List[float]] = [[0.0 for _ in range(17)] for _ in range(7)]
-    counts: List[List[int]] = [[0 for _ in range(17)] for _ in range(7)]
+    sums: List[List[float]] = [[0.0 for _ in range(18)] for _ in range(7)]
+    counts: List[List[int]] = [[0 for _ in range(18)] for _ in range(7)]
 
     if not os.path.exists(DB_PATH):
-        return [[None for _ in range(17)] for _ in range(7)]
+        return [[None for _ in range(18)] for _ in range(7)]
 
     conn = get_db_connection()
     try:
@@ -259,8 +318,8 @@ def compute_heatmap_for_facility(facility_name: str) -> List[List[Optional[float
             py_weekday = ts_local.weekday()
             day_index = (py_weekday + 1) % 7
             hour = ts_local.hour
-            if 6 <= hour <= 22:
-                hour_idx = hour - 6  # 0..16
+            if 6 <= hour <= 23 and is_slot_open(facility_name, day_index, hour):
+                hour_idx = hour - 6  # 0..17
                 sums[day_index][hour_idx] += float(row["occupancy_pct"])
                 counts[day_index][hour_idx] += 1
         except (TypeError, ValueError):
@@ -269,7 +328,7 @@ def compute_heatmap_for_facility(facility_name: str) -> List[List[Optional[float
     heatmap: List[List[Optional[float]]] = []
     for d in range(7):
         row_vals: List[Optional[float]] = []
-        for h_idx in range(17):
+        for h_idx in range(18):
             if counts[d][h_idx] > 0:
                 avg = sums[d][h_idx] / counts[d][h_idx]
                 row_vals.append(avg)
@@ -283,7 +342,7 @@ def compute_heatmap_for_facility(facility_name: str) -> List[List[Optional[float
 @app.get("/api/heatmap/{facility_name}")
 def get_heatmap(facility_name: str) -> Dict[str, Any]:
     """
-    Return a 7x17 grid (days 0-6, hours 6-22) of average occupancy_pct
+    Return a 7x18 grid (days 0-6, hours 6-23) of average occupancy_pct
     for the given facility.
     """
     heatmap = compute_heatmap_for_facility(facility_name)
@@ -303,10 +362,14 @@ def recommend_slots(payload: RecommendRequest) -> List[Recommendation]:
     # Collect candidate slots
     candidates: List[Dict[str, Any]] = []
     for day in range(7):
-        for hour_idx in range(17):
+        for hour_idx in range(18):
             hour = 6 + hour_idx
             avg_pct = heatmap[day][hour_idx]
             if avg_pct is None:
+                continue
+
+            # Skip times outside base weekly hours for this facility.
+            if not is_slot_open(payload.facility, day, hour):
                 continue
 
             # Check if this slot (hour to hour+1) overlaps any schedule block

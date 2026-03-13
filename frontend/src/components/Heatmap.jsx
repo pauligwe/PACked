@@ -21,7 +21,7 @@ const DAY_NAMES = [
   "Saturday"
 ];
 
-const HOURS = Array.from({ length: 17 }, (_, idx) => 6 + idx);
+const HOURS = Array.from({ length: 18 }, (_, idx) => 6 + idx);
 
 function occupancyToLabel(pct) {
   if (pct < 25) return "Very quiet";
