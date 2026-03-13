@@ -21,7 +21,7 @@ const DAY_NAMES = [
   "Saturday"
 ];
 
-const HOURS = Array.from({ length: 17 }, (_, idx) => 6 + idx); // 6..22
+const HOURS = Array.from({ length: 17 }, (_, idx) => 6 + idx);
 
 function occupancyToLabel(pct) {
   if (pct < 25) return "Very quiet";
@@ -33,13 +33,13 @@ function occupancyToLabel(pct) {
 }
 
 function colorForPct(pct) {
-  if (pct == null) return "bg-slate-800";
-  if (pct < 25) return "bg-emerald-500";
-  if (pct < 45) return "bg-emerald-400";
-  if (pct < 60) return "bg-amber-400";
-  if (pct < 75) return "bg-orange-500";
-  if (pct < 88) return "bg-red-500";
-  return "bg-red-700";
+  if (pct == null) return "rgba(26,26,26,1)";
+  if (pct < 25) return "rgba(16,185,129,0.35)";
+  if (pct < 45) return "rgba(52,211,153,0.45)";
+  if (pct < 60) return "rgba(251,191,36,0.5)";
+  if (pct < 75) return "rgba(249,115,22,0.55)";
+  if (pct < 88) return "rgba(239,68,68,0.6)";
+  return "rgba(185,28,28,0.7)";
 }
 
 function hourLabel(hour) {
@@ -77,7 +77,6 @@ export default function Heatmap() {
 
   useEffect(() => {
     fetchHeatmap(facility);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facility]);
 
   const tooltip = useMemo(() => {
@@ -102,21 +101,25 @@ export default function Heatmap() {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">Historical Heatmap</h2>
-          <p className="text-sm text-slate-400">
-            Average occupancy percentage by day of week and hour, based on all
-            collected readings.
+          <h2 className="text-[13px] font-medium text-linear-text-secondary tracking-[-0.03em]">
+            Historical Heatmap
+          </h2>
+          <p className="text-[12px] text-linear-text-tertiary mt-0.5">
+            Average occupancy by day and hour.
           </p>
         </div>
-        <div className="flex flex-col gap-1 text-sm">
-          <label className="text-slate-300" htmlFor="facility">
+        <div className="flex flex-col gap-1">
+          <label
+            htmlFor="facility"
+            className="text-[11px] uppercase tracking-[0.06em] text-linear-text-tertiary"
+          >
             Facility
           </label>
           <select
             id="facility"
             value={facility}
             onChange={(e) => setFacility(e.target.value)}
-            className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            className="min-w-[200px] rounded-md border border-linear-border bg-linear-surface px-3 py-2 text-[13px] text-linear-text-primary focus:border-linear-text-tertiary focus:outline-none transition-colors duration-100"
           >
             {FACILITY_NAMES.map((name) => (
               <option key={name} value={name}>
@@ -127,22 +130,31 @@ export default function Heatmap() {
         </div>
       </div>
 
-      {loading && <p className="text-slate-300 text-sm">Loading heatmap…</p>}
+      {loading && (
+        <p className="text-[13px] text-linear-text-secondary">
+          Loading heatmap…
+        </p>
+      )}
       {error && (
-        <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-3 text-sm text-red-200">
+        <div className="rounded-md border border-linear-border bg-linear-surface p-3 text-[13px] text-linear-text-secondary">
           {error}
         </div>
       )}
 
       {heatmap && (
-        <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-          <div className="min-w-[640px]">
-            <div className="grid grid-cols-[auto_repeat(7,minmax(0,1fr))] gap-1 text-xs">
+        <div className="overflow-x-auto">
+          <div className="min-w-[640px] inline-block">
+            <div
+              className="grid gap-px text-[11px]"
+              style={{
+                gridTemplateColumns: "auto repeat(7, minmax(0, 1fr))",
+              }}
+            >
               <div />
               {DAY_NAMES.map((day) => (
                 <div
                   key={day}
-                  className="text-center font-medium text-slate-300"
+                  className="py-2 text-center uppercase tracking-[0.06em] text-linear-text-tertiary"
                 >
                   {day.slice(0, 3)}
                 </div>
@@ -150,7 +162,10 @@ export default function Heatmap() {
 
               {HOURS.map((hour, hourIdx) => (
                 <React.Fragment key={hour}>
-                  <div className="flex items-center justify-end pr-1 text-[0.65rem] text-slate-400">
+                  <div
+                    className="flex items-center justify-end pr-3 text-linear-text-muted"
+                    style={{ height: 32 }}
+                  >
                     {hourLabel(hour)}
                   </div>
                   {DAY_NAMES.map((_, dayIdx) => {
@@ -159,9 +174,11 @@ export default function Heatmap() {
                       <button
                         key={`${dayIdx}-${hourIdx}`}
                         type="button"
-                        className={`h-6 w-full rounded-sm ${colorForPct(
-                          pct
-                        )} transition-opacity hover:opacity-90`}
+                        className="rounded-[3px] transition-colors duration-100 hover:opacity-90"
+                        style={{
+                          height: 32,
+                          backgroundColor: colorForPct(pct),
+                        }}
                         onMouseEnter={() =>
                           setHover({ day: dayIdx, hourIdx })
                         }
@@ -176,38 +193,91 @@ export default function Heatmap() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
-        <span className="font-medium text-slate-300">Legend:</span>
-        <span className="inline-flex items-center gap-1">
-          <span className="h-3 w-3 rounded-sm bg-emerald-500" /> Very quiet
+      <div className="flex flex-wrap items-center gap-4 text-[11px] text-linear-text-tertiary">
+        <span className="uppercase tracking-[0.06em]">Legend</span>
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            className="rounded-full"
+            style={{
+              width: 6,
+              height: 6,
+              backgroundColor: "rgba(16,185,129,0.5)",
+            }}
+          />
+          Very quiet
         </span>
-        <span className="inline-flex items-center gap-1">
-          <span className="h-3 w-3 rounded-sm bg-emerald-400" /> Light
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            className="rounded-full"
+            style={{
+              width: 6,
+              height: 6,
+              backgroundColor: "rgba(52,211,153,0.5)",
+            }}
+          />
+          Light
         </span>
-        <span className="inline-flex items-center gap-1">
-          <span className="h-3 w-3 rounded-sm bg-amber-400" /> Moderate
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            className="rounded-full"
+            style={{
+              width: 6,
+              height: 6,
+              backgroundColor: "rgba(251,191,36,0.5)",
+            }}
+          />
+          Moderate
         </span>
-        <span className="inline-flex items-center gap-1">
-          <span className="h-3 w-3 rounded-sm bg-orange-500" /> Busy
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            className="rounded-full"
+            style={{
+              width: 6,
+              height: 6,
+              backgroundColor: "rgba(249,115,22,0.55)",
+            }}
+          />
+          Busy
         </span>
-        <span className="inline-flex items-center gap-1">
-          <span className="h-3 w-3 rounded-sm bg-red-500" /> Very busy
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            className="rounded-full"
+            style={{
+              width: 6,
+              height: 6,
+              backgroundColor: "rgba(239,68,68,0.6)",
+            }}
+          />
+          Very busy
         </span>
-        <span className="inline-flex items-center gap-1">
-          <span className="h-3 w-3 rounded-sm bg-red-700" /> Packed
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            className="rounded-full"
+            style={{
+              width: 6,
+              height: 6,
+              backgroundColor: "rgba(185,28,28,0.7)",
+            }}
+          />
+          Packed
         </span>
-        <span className="inline-flex items-center gap-1">
-          <span className="h-3 w-3 rounded-sm bg-slate-800" /> No data
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            className="rounded-full bg-linear-elevated"
+            style={{ width: 6, height: 6 }}
+          />
+          No data
         </span>
       </div>
 
       {tooltip && (
-        <div className="text-xs text-slate-300">
-          <span className="font-medium">{tooltip.title}</span>
-          <span className="text-slate-400"> — {tooltip.subtitle}</span>
+        <div className="text-[12px] text-linear-text-secondary">
+          <span className="text-linear-text-primary font-medium">
+            {tooltip.title}
+          </span>
+          <span className="text-linear-text-tertiary"> — {tooltip.subtitle}</span>
         </div>
       )}
     </div>
   );
 }
-

@@ -12,32 +12,22 @@ const FACILITY_NAMES = [
   "Warrior Zone"
 ];
 
-const DAY_NAMES = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday"
-];
-
-function labelToColor(label) {
+function labelToDotColor(label) {
   switch (label) {
     case "Very quiet":
-      return "bg-emerald-500 text-slate-900";
+      return "#10b981";
     case "Light":
-      return "bg-emerald-400 text-slate-900";
+      return "#34d399";
     case "Moderate":
-      return "bg-amber-400 text-slate-900";
+      return "#fbbf24";
     case "Busy":
-      return "bg-orange-500 text-slate-900";
+      return "#f97316";
     case "Very busy":
-      return "bg-red-500 text-slate-50";
+      return "#ef4444";
     case "Packed":
-      return "bg-red-700 text-slate-50";
+      return "#b91c1c";
     default:
-      return "bg-slate-600 text-slate-50";
+      return "#525252";
   }
 }
 
@@ -64,10 +54,12 @@ export default function Recommendations() {
         const uniqueDates = new Set(
           data.map((r) => (r.timestamp || "").slice(0, 10))
         );
-        const distinctDays = uniqueDates.has("") ? uniqueDates.size - 1 : uniqueDates.size;
+        const distinctDays = uniqueDates.has("")
+          ? uniqueDates.size - 1
+          : uniqueDates.size;
         setHistorySummary({ totalReadings, distinctDays });
       } catch {
-        // Non-critical; banner will simply not appear if this fails.
+        // Non-critical
       }
     };
 
@@ -117,12 +109,20 @@ export default function Recommendations() {
   return (
     <div className="space-y-5">
       {showDataWarning && (
-        <div className="rounded-lg border border-amber-500/60 bg-amber-500/10 p-4 text-sm text-amber-100">
-          <p className="font-medium">
-            Not enough data yet for reliable recommendations — keep the scraper
-            running!
+        <div
+          className="pl-4 py-2 text-[13px] text-linear-text-secondary"
+          style={{
+            borderLeftWidth: "3px",
+            borderLeftColor: "#f59e0b",
+            borderLeftStyle: "solid",
+            backgroundColor: "transparent",
+          }}
+        >
+          <p className="text-linear-text-primary">
+            Not enough data yet for reliable recommendations — keep the
+            scraper running!
           </p>
-          <p className="mt-1">
+          <p className="mt-0.5 text-linear-text-tertiary">
             {historySummary.totalReadings} readings collected across{" "}
             {historySummary.distinctDays} day
             {historySummary.distinctDays === 1 ? "" : "s"} so far.
@@ -131,8 +131,10 @@ export default function Recommendations() {
       )}
 
       <div>
-        <h2 className="text-lg font-semibold">Schedule & Recommendations</h2>
-        <p className="text-sm text-slate-400">
+        <h2 className="text-[13px] font-medium text-linear-text-secondary tracking-[-0.03em]">
+          Schedule & Recommendations
+        </h2>
+        <p className="text-[12px] text-linear-text-tertiary mt-0.5">
           Paste your class schedule, pick a facility, and get the quietest
           times that fit around your classes.
         </p>
@@ -143,29 +145,28 @@ export default function Recommendations() {
           <div className="md:col-span-2 space-y-2">
             <label
               htmlFor="schedule"
-              className="text-sm font-medium text-slate-200"
+              className="text-[11px] uppercase tracking-[0.06em] text-linear-text-tertiary"
             >
               Class schedule
             </label>
             <textarea
               id="schedule"
               rows={6}
-              className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              className="w-full rounded-md border border-linear-border-alt bg-linear-surface px-3 py-2 text-[13px] text-linear-text-primary font-mono focus:border-linear-text-tertiary focus:outline-none transition-colors duration-100"
               placeholder={`One class per line, e.g.\nMonday 9:00-10:30 CS 341\nTuesday 13:00-14:30 MATH 239`}
               value={scheduleText}
               onChange={(e) => setScheduleText(e.target.value)}
             />
-            <p className="text-xs text-slate-500">
-              Day names can be full or abbreviated (Mon, Tue, Wed, Thu, Fri,
-              Sat, Sun). Times are24-hour format.
+            <p className="text-[11px] text-linear-text-tertiary">
+              Day names full or abbreviated. Times in 24-hour format.
             </p>
           </div>
 
           <div className="space-y-3">
-            <div className="space-y-1 text-sm">
+            <div className="space-y-1">
               <label
                 htmlFor="facility"
-                className="text-sm font-medium text-slate-200"
+                className="text-[11px] uppercase tracking-[0.06em] text-linear-text-tertiary"
               >
                 Facility
               </label>
@@ -173,7 +174,7 @@ export default function Recommendations() {
                 id="facility"
                 value={facility}
                 onChange={(e) => setFacility(e.target.value)}
-                className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full rounded-md border border-linear-border bg-linear-surface px-3 py-2 text-[13px] text-linear-text-primary focus:border-linear-text-tertiary focus:outline-none transition-colors duration-100"
               >
                 {FACILITY_NAMES.map((name) => (
                   <option key={name} value={name}>
@@ -183,10 +184,10 @@ export default function Recommendations() {
               </select>
             </div>
 
-            <div className="space-y-1 text-sm">
+            <div className="space-y-1">
               <label
                 htmlFor="topN"
-                className="text-sm font-medium text-slate-200"
+                className="text-[11px] uppercase tracking-[0.06em] text-linear-text-tertiary"
               >
                 Number of recommendations
               </label>
@@ -204,14 +205,14 @@ export default function Recommendations() {
                     )
                   )
                 }
-                className="w-24 rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-24 rounded-md border border-linear-border bg-linear-surface px-3 py-2 text-[13px] text-linear-text-primary focus:border-linear-text-tertiary focus:outline-none transition-colors duration-100"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-slate-900 shadow hover:bg-emerald-400 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="inline-flex items-center justify-center h-8 rounded px-4 text-[13px] font-medium text-linear-bg bg-linear-text-primary transition-colors duration-100 hover:bg-[#e5e5e5] disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading ? "Finding best times…" : "Get recommendations"}
             </button>
@@ -220,43 +221,43 @@ export default function Recommendations() {
       </form>
 
       {error && (
-        <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-3 text-sm text-red-100">
+        <div className="rounded-md border border-linear-border bg-linear-surface p-3 text-[13px] text-linear-text-secondary">
           {error}
         </div>
       )}
 
       {!error && !loading && recommendations.length === 0 && (
-        <p className="text-sm text-slate-400">
+        <p className="text-[13px] text-linear-text-tertiary">
           Recommendations will appear here once you submit a schedule.
         </p>
       )}
 
       {recommendations.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-slate-200">
+        <div>
+          <h3 className="text-[11px] uppercase tracking-[0.06em] text-linear-text-tertiary mb-2">
             Recommended time slots
           </h3>
-          <ul className="space-y-2">
+          <ul className="rounded-md border border-linear-border bg-linear-surface overflow-hidden">
             {recommendations.map((rec, idx) => (
               <li
                 key={`${rec.day}-${rec.hour}-${idx}`}
-                className="flex items-start justify-between gap-3 rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm"
+                className="flex items-center justify-between gap-4 px-4 py-3 text-[13px] border-b border-linear-border last:border-b-0 transition-colors duration-100 hover:bg-linear-elevated"
               >
-                <div>
-                  <p className="font-medium text-slate-100">
-                    {rec.day_name} · {rec.hour_label}
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    Expected occupancy:{" "}
-                    {Math.round(rec.avg_occupancy_pct * 10) / 10}% (
-                    {rec.label})
-                  </p>
-                </div>
-                <span
-                  className={`mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-[0.7rem] font-medium ${labelToColor(
-                    rec.label
-                  )}`}
-                >
+                <span className="text-linear-text-primary font-medium">
+                  {rec.day_name} · {rec.hour_label}
+                </span>
+                <span className="text-linear-text-secondary">
+                  {Math.round(rec.avg_occupancy_pct * 10) / 10}%
+                </span>
+                <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-linear-text-tertiary">
+                  <span
+                    className="rounded-full flex-shrink-0"
+                    style={{
+                      width: 6,
+                      height: 6,
+                      backgroundColor: labelToDotColor(rec.label),
+                    }}
+                  />
                   {rec.label}
                 </span>
               </li>
@@ -267,4 +268,3 @@ export default function Recommendations() {
     </div>
   );
 }
-
