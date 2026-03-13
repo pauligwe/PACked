@@ -8,10 +8,14 @@ from typing import Any, Dict, List, Optional
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, conint
+from zoneinfo import ZoneInfo
 
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(BASE_DIR, "occupancy.db")
+
+# Local timezone for bucketing/labels (Waterloo, Ontario).
+LOCAL_TZ = ZoneInfo("America/Toronto")
 
 
 def get_db_connection() -> sqlite3.Connection:
@@ -232,8 +236,7 @@ def compute_heatmap_for_facility(facility_name: str) -> List[List[Optional[float
         rows = conn.execute(
             """
             SELECT occupancy_pct,
-                   strftime('%w', timestamp) AS dow,  -- 0=Sunday
-                   strftime('%H', timestamp) AS hour
+                   timestamp
             FROM readings
             WHERE facility_name = ?
             """,
@@ -243,9 +246,19 @@ def compute_heatmap_for_facility(facility_name: str) -> List[List[Optional[float
         conn.close()
 
     for row in rows:
+        ts_raw = row["timestamp"]
+        if not isinstance(ts_raw, str):
+            continue
         try:
-            day_index = int(row["dow"])
-            hour = int(row["hour"])
+            # SQLite CURRENT_TIMESTAMP is stored in UTC as "YYYY-MM-DD HH:MM:SS".
+            ts_utc = datetime.fromisoformat(ts_raw.replace(" ", "T")).replace(
+                tzinfo=timezone.utc
+            )
+            ts_local = ts_utc.astimezone(LOCAL_TZ)
+            # Python weekday(): Monday=0..Sunday=6. Convert to 0=Sunday..6=Saturday.
+            py_weekday = ts_local.weekday()
+            day_index = (py_weekday + 1) % 7
+            hour = ts_local.hour
             if 6 <= hour <= 22:
                 hour_idx = hour - 6  # 0..16
                 sums[day_index][hour_idx] += float(row["occupancy_pct"])

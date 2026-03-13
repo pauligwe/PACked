@@ -3,6 +3,13 @@
 @tailwind utilities;
 
 body {
-  @apply bg-slate-950 text-slate-100 antialiased;
+  font-family: Inter, system-ui, sans-serif;
+  background-color: #0F0F0F;
+  color: #F5F5F5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  letter-spacing: -0.03em;
 }
 

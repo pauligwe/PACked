@@ -11,23 +11,27 @@ function occupancyToLabel(pct) {
   return "Packed";
 }
 
-function labelToColor(label) {
+function labelToDotColor(label) {
   switch (label) {
     case "Very quiet":
-      return "bg-emerald-500";
+      return "#10b981";
     case "Light":
-      return "bg-emerald-400";
+      return "#34d399";
     case "Moderate":
-      return "bg-amber-400";
+      return "#fbbf24";
     case "Busy":
-      return "bg-orange-500";
+      return "#f97316";
     case "Very busy":
-      return "bg-red-500";
+      return "#ef4444";
     case "Packed":
-      return "bg-red-700";
+      return "#b91c1c";
     default:
-      return "bg-slate-600";
+      return "#525252";
   }
+}
+
+function labelToBarColor(label) {
+  return labelToDotColor(label);
 }
 
 export default function LiveView() {
@@ -57,7 +61,7 @@ export default function LiveView() {
     };
 
     fetchLive();
-    const interval = setInterval(fetchLive, 2 * 60 * 1000); // every 2 minutes
+    const interval = setInterval(fetchLive, 2 * 60 * 1000);
     return () => {
       mounted = false;
       clearInterval(interval);
@@ -65,13 +69,19 @@ export default function LiveView() {
   }, []);
 
   if (loading) {
-    return <p className="text-slate-300">Loading live occupancy…</p>;
+    return (
+      <p className="text-[13px] text-linear-text-secondary">
+        Loading live occupancy…
+      </p>
+    );
   }
 
   if (error) {
     return (
-      <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-4 text-sm text-red-200">
-        <p className="font-medium mb-1">Failed to load live data.</p>
+      <div className="rounded-md border border-linear-border bg-linear-surface p-4 text-[13px] text-linear-text-secondary">
+        <p className="text-linear-text-primary font-medium mb-1">
+          Failed to load live data.
+        </p>
         <p>{error}</p>
       </div>
     );
@@ -79,7 +89,7 @@ export default function LiveView() {
 
   if (!readings.length) {
     return (
-      <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4 text-sm text-slate-300">
+      <div className="rounded-md border border-linear-border bg-linear-surface p-4 text-[13px] text-linear-text-secondary">
         No readings yet. Start the scraper scheduler and give it some time to
         collect data.
       </div>
@@ -88,50 +98,67 @@ export default function LiveView() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Live Occupancy</h2>
+      <h2 className="text-[13px] font-medium text-linear-text-secondary tracking-[-0.03em]">
+        Live Occupancy
+      </h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {readings.map((r) => {
           const label = occupancyToLabel(r.occupancy_pct);
-          const colorClass = labelToColor(label);
+          const dotColor = labelToDotColor(label);
+          const barColor = labelToBarColor(label);
           const pctRounded = Math.round(r.occupancy_pct);
-          const ratio = Math.min(
-            100,
-            Math.max(0, (r.occupancy_pct / 100) * 100)
-          );
+          const ratio = Math.min(100, Math.max(0, r.occupancy_pct));
 
           return (
             <div
               key={r.facility_id}
-              className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 flex flex-col gap-3 shadow-sm"
+              className="rounded-md border border-linear-border bg-linear-surface p-4 flex flex-col gap-2 shadow-linear transition-colors duration-100 hover:bg-linear-elevated"
+              style={{ minHeight: "140px" }}
             >
               <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="font-semibold text-sm">{r.facility_name}</h3>
-                  <p className="text-xs text-slate-400">
-                    {pctRounded}% — {r.occupancy_count}/{r.max_capacity} people
-                  </p>
-                </div>
-                <span
-                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[0.7rem] font-medium text-slate-900 ${colorClass}`}
-                >
+                <h3 className="text-[13px] font-medium text-linear-text-primary">
+                  {r.facility_name}
+                </h3>
+                <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-linear-text-secondary">
+                  <span
+                    className="rounded-full flex-shrink-0"
+                    style={{
+                      width: 6,
+                      height: 6,
+                      backgroundColor: dotColor,
+                    }}
+                  />
                   {label}
                 </span>
               </div>
 
-              <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+              <p className="text-[28px] font-semibold text-linear-text-primary tracking-[-0.03em] leading-none">
+                {pctRounded}%
+              </p>
+              <p className="text-[12px] text-linear-text-tertiary">
+                {r.occupancy_count}/{r.max_capacity} people
+              </p>
+
+              <div
+                className="h-[3px] rounded-[2px] overflow-hidden mt-1"
+                style={{ backgroundColor: "#2A2A2A" }}
+              >
                 <div
-                  className={`h-full ${colorClass} transition-all`}
-                  style={{ width: `${ratio}%` }}
+                  className="h-full rounded-[2px] transition-all duration-100"
+                  style={{
+                    width: `${ratio}%`,
+                    backgroundColor: barColor,
+                  }}
                 />
               </div>
 
-              <p className="text-[0.7rem] text-slate-500">
+              <p className="text-[11px] text-linear-text-muted mt-auto pt-1">
                 Last updated:{" "}
                 {new Date(r.timestamp).toLocaleString(undefined, {
                   hour: "numeric",
                   minute: "2-digit",
                   month: "short",
-                  day: "numeric"
+                  day: "numeric",
                 })}
               </p>
             </div>
@@ -141,4 +168,3 @@ export default function LiveView() {
     </div>
   );
 }
-

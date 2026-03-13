@@ -13,29 +13,31 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("live");
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-semibold">
-              Warrior Gym Tracker
-            </h1>
-            <p className="text-slate-400 text-sm">
-              Find the quietest times to hit the gym using real Warrior
-              Athletics occupancy data.
-            </p>
-          </div>
-          <nav className="flex gap-2 rounded-full bg-slate-800/80 p-1 text-sm">
+    <div className="min-h-screen flex flex-col bg-linear-bg">
+      <header
+        className="w-full h-11 flex items-center border-b border-linear-border"
+        style={{ backgroundColor: "#0F0F0F" }}
+      >
+        <div className="max-w-[1100px] w-full mx-auto px-4 flex items-center justify-between">
+          <span className="text-[14px] font-semibold text-linear-text-primary tracking-[-0.03em]">
+            Warrior Gym Tracker
+          </span>
+          <nav className="flex items-center gap-6">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-3 py-1.5 rounded-full transition ${
+                className={`text-[13px] py-2 -mb-px transition-colors duration-100 ${
                   activeTab === tab.id
-                    ? "bg-emerald-500 text-slate-900 font-medium shadow"
-                    : "text-slate-300 hover:bg-slate-700/80"
+                    ? "text-linear-text-primary border-b border-linear-text-primary"
+                    : "text-linear-text-secondary hover:text-linear-text-primary"
                 }`}
+                style={
+                  activeTab === tab.id
+                    ? { borderBottomWidth: "1px" }
+                    : {}
+                }
               >
                 {tab.label}
               </button>
@@ -45,15 +47,18 @@ export default function App() {
       </header>
 
       <main className="flex-1">
-        <div className="max-w-5xl mx-auto px-4 py-6 sm:py-8">
+        <div className="max-w-[1100px] w-full mx-auto px-4 py-6">
           {activeTab === "live" && <LiveView />}
           {activeTab === "heatmap" && <Heatmap />}
           {activeTab === "recommendations" && <Recommendations />}
         </div>
       </main>
 
-      <footer className="border-t border-slate-800 bg-slate-900/80">
-        <div className="max-w-5xl mx-auto px-4 py-3 text-xs text-slate-500 flex justify-between gap-2 flex-wrap">
+      <footer
+        className="w-full h-11 flex items-center border-t border-linear-border"
+        style={{ backgroundColor: "#0F0F0F" }}
+      >
+        <div className="max-w-[1100px] w-full mx-auto px-4 flex justify-between gap-2 flex-wrap text-[11px] text-linear-text-tertiary">
           <span>Warrior Gym Tracker · Personal/educational use only.</span>
           <span>Backend: FastAPI · Frontend: React + Vite + Tailwind</span>
         </div>
@@ -61,4 +66,3 @@ export default function App() {
     </div>
   );
 }
-
