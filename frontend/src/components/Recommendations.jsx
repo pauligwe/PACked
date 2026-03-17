@@ -31,9 +31,30 @@ function labelToDotColor(label) {
   }
 }
 
+function parseHourMinuteWithMeridiem(timeText, meridiem) {
+  if (!timeText) return null;
+  const match = timeText.trim().match(/^(\d{1,2})(?::(\d{2}))?$/);
+  if (!match) return null;
+  let hour = Number(match[1]);
+  const minute = match[2] != null ? Number(match[2]) : 0;
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
+  if (hour < 1 || hour > 12 || minute < 0 || minute >= 60) return null;
+  const isPM = meridiem === "PM";
+  if (hour === 12) {
+    hour = isPM ? 12 : 0;
+  } else if (isPM) {
+    hour += 12;
+  }
+  return hour + minute / 60;
+}
+
 export default function Recommendations() {
   const [facility, setFacility] = useState(FACILITY_NAMES[0]);
   const [topN, setTopN] = useState(5);
+  const [startTimeText, setStartTimeText] = useState("10:00");
+  const [startMeridiem, setStartMeridiem] = useState("AM");
+  const [endTimeText, setEndTimeText] = useState("8:00");
+  const [endMeridiem, setEndMeridiem] = useState("PM");
   const [scheduleText, setScheduleText] = useState("");
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -79,6 +100,27 @@ export default function Recommendations() {
       return;
     }
 
+    const preferredStart = parseHourMinuteWithMeridiem(
+      startTimeText,
+      startMeridiem
+    );
+    const preferredEnd = parseHourMinuteWithMeridiem(
+      endTimeText,
+      endMeridiem
+    );
+    if (preferredStart == null || preferredEnd == null) {
+      setError(
+        "Please enter valid times like 10:00 and 8:30 and pick AM/PM."
+      );
+      return;
+    }
+    if (preferredEnd <= preferredStart) {
+      setError(
+        "Please choose a workout window where the end time is after the start time."
+      );
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/recommend`, {
@@ -87,7 +129,9 @@ export default function Recommendations() {
         body: JSON.stringify({
           facility,
           schedule_blocks: blocks,
-          top_n: topN
+          top_n: topN,
+          preferred_start_hour: preferredStart,
+          preferred_end_hour: preferredEnd
         })
       });
       if (!res.ok) {
@@ -142,7 +186,7 @@ export default function Recommendations() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="md:col-span-2 space-y-2">
+          <div className="md:col-span-2 space-y-4">
             <label
               htmlFor="schedule"
               className="text-[11px] uppercase tracking-[0.06em] text-linear-text-tertiary"
@@ -160,6 +204,54 @@ export default function Recommendations() {
             <p className="text-[11px] text-linear-text-tertiary">
               Day names full or abbreviated. Times in 24-hour format.
             </p>
+
+            <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+              <div className="space-y-1 flex-1">
+                <span className="text-[11px] uppercase tracking-[0.06em] text-linear-text-tertiary">
+                  Earliest workout time
+                </span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={startTimeText}
+                    onChange={(e) => setStartTimeText(e.target.value)}
+                    placeholder="10:00"
+                    className="flex-1 rounded-md border border-linear-border bg-linear-surface px-3 py-2 text-[13px] text-linear-text-primary focus:border-linear-text-tertiary focus:outline-none transition-colors duration-100"
+                  />
+                  <select
+                    value={startMeridiem}
+                    onChange={(e) => setStartMeridiem(e.target.value)}
+                    className="rounded-md border border-linear-border bg-linear-surface px-2 py-2 text-[13px] text-linear-text-primary focus:border-linear-text-tertiary focus:outline-none transition-colors duration-100"
+                  >
+                    <option value="AM">AM</option>
+                    <option value="PM">PM</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1 flex-1">
+                <span className="text-[11px] uppercase tracking-[0.06em] text-linear-text-tertiary">
+                  Latest workout time
+                </span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={endTimeText}
+                    onChange={(e) => setEndTimeText(e.target.value)}
+                    placeholder="8:00"
+                    className="flex-1 rounded-md border border-linear-border bg-linear-surface px-3 py-2 text-[13px] text-linear-text-primary focus:border-linear-text-tertiary focus:outline-none transition-colors duration-100"
+                  />
+                  <select
+                    value={endMeridiem}
+                    onChange={(e) => setEndMeridiem(e.target.value)}
+                    className="rounded-md border border-linear-border bg-linear-surface px-2 py-2 text-[13px] text-linear-text-primary focus:border-linear-text-tertiary focus:outline-none transition-colors duration-100"
+                  >
+                    <option value="AM">AM</option>
+                    <option value="PM">PM</option>
+                  </select>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-3">

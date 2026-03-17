@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import sqlite3
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -124,6 +125,9 @@ def parse_readings(html: str) -> List[Dict[str, Any]]:
             header = card.select_one(".occupancy-card-header h2 strong")
             name = header.get_text(strip=True) if header else None
 
+            # Grab the full text for potential fallback parsing of percentages.
+            card_text = card.get_text(" ", strip=True)
+
             canvas = card.select_one("canvas.occupancy-chart")
             if canvas is None:
                 raise ValueError("Missing canvas.occupancy-chart")
@@ -132,10 +136,9 @@ def parse_readings(html: str) -> List[Dict[str, Any]]:
             data_occupancy = _parse_int(canvas.get("data-occupancy"))
             # remaining = _parse_int(canvas.get("data-remaining"))
 
-            if data_ratio is None or data_occupancy is None:
-                raise ValueError("Missing or invalid occupancy data attributes")
-
-            occupancy_pct = data_ratio * 100.0
+            occupancy_pct: Optional[float] = None
+            if data_ratio is not None:
+                occupancy_pct = data_ratio * 100.0
 
             # Facility ID may be encoded on the card or canvas; try several attributes.
             facility_id = (
@@ -165,6 +168,25 @@ def parse_readings(html: str) -> List[Dict[str, Any]]:
                 raise ValueError(
                     f"Incomplete facility data (name={name}, id={facility_id}, max={max_capacity})"
                 )
+
+            # Fallback: if occupancy data attributes are missing or clearly wrong
+            # (e.g., always 0 for a facility that shows non-zero percentage on the page),
+            # try to parse the visible percentage text instead.
+            if occupancy_pct is None or data_occupancy is None:
+                m = re.search(r"(\d+)\s*%", card_text)
+                text_pct = _parse_float(m.group(1)) if m else None
+                if text_pct is None:
+                    raise ValueError("Missing or invalid occupancy percentage from text")
+
+                occupancy_pct = text_pct
+
+                if data_occupancy is None:
+                    # Derive an approximate count from percentage and capacity.
+                    data_occupancy = int(round((text_pct / 100.0) * max_capacity))
+
+            # Final guard: ensure we have valid numbers before saving.
+            if occupancy_pct is None or data_occupancy is None:
+                raise ValueError("Incomplete occupancy data after fallbacks")
 
             records.append(
                 {
