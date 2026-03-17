@@ -103,6 +103,14 @@ class RecommendRequest(BaseModel):
     facility: str
     schedule_blocks: List[ScheduleBlock]
     top_n: conint(ge=1, le=20) = 5
+    # Optional personal workout window in decimal hours (local time), e.g. 10.0–20.0.
+    # Defaults cover the full 6:00–23:00 range used by the heatmap.
+    preferred_start_hour: float = Field(
+        6.0, description="Earliest hour (local, 0-23) user is willing to work out."
+    )
+    preferred_end_hour: float = Field(
+        23.0, description="Latest hour (local, 0-23) user is willing to work out."
+    )
 
 
 class Recommendation(BaseModel):
@@ -366,6 +374,10 @@ def recommend_slots(payload: RecommendRequest) -> List[Recommendation]:
             hour = 6 + hour_idx
             avg_pct = heatmap[day][hour_idx]
             if avg_pct is None:
+                continue
+
+            # Respect the user's personal workout window.
+            if not (payload.preferred_start_hour <= hour + 0.0 < payload.preferred_end_hour):
                 continue
 
             # Skip times outside base weekly hours for this facility.
