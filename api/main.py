@@ -102,7 +102,8 @@ class ScheduleBlock(BaseModel):
 class RecommendRequest(BaseModel):
     facility: str
     schedule_blocks: List[ScheduleBlock]
-    top_n: conint(ge=1, le=20) = 5
+    # Always return the single best slot for now.
+    top_n: conint(ge=1, le=20) = 1
     # Optional personal workout window in decimal hours (local time), e.g. 10.0–20.0.
     # Defaults cover the full 6:00–23:00 range used by the heatmap.
     preferred_start_hour: float = Field(
@@ -114,6 +115,38 @@ class RecommendRequest(BaseModel):
 
 
 class Recommendation(BaseModel):
+    day: int
+    day_name: str
+    hour: int
+    hour_label: str
+    avg_occupancy_pct: float
+    label: str
+
+
+class OptionGroup(BaseModel):
+    facilities: List[str]
+
+
+class SplitDay(BaseModel):
+    label: str
+    options: List[OptionGroup]
+
+
+class SplitRecommendRequest(BaseModel):
+    schedule_blocks: List[ScheduleBlock]
+    split_days: List[SplitDay]
+    preferred_start_hour: float = Field(
+        6.0, description="Earliest hour (local, 0-23) user is willing to work out."
+    )
+    preferred_end_hour: float = Field(
+        23.0, description="Latest hour (local, 0-23) user is willing to work out."
+    )
+
+
+class SplitDayRecommendation(BaseModel):
+    split_label: str
+    option_index: int
+    facilities: List[str]
     day: int
     day_name: str
     hour: int
@@ -287,8 +320,7 @@ def get_history(
 
 
 def compute_heatmap_for_facility(
-    facility_name: str,
-    term: Optional[str] = None,
+    facility_name: str, term: Optional[str] = None
 ) -> List[List[Optional[float]]]:
     """
     Compute a 7x18 grid of average occupancy_pct values for the given facility.
@@ -450,6 +482,107 @@ def recommend_slots(payload: RecommendRequest) -> List[Recommendation]:
                 label=occupancy_to_label(pct),
             )
         )
+
+    return results
+
+
+@app.post("/api/recommend_split", response_model=List[SplitDayRecommendation])
+def recommend_split_slots(payload: SplitRecommendRequest) -> List[SplitDayRecommendation]:
+    """
+    Recommend one quiet time slot per split day, taking into account:
+    - academic schedule blocks
+    - user's preferred workout window
+    - multiple facility option-groups per day
+    """
+    if not payload.split_days:
+        return []
+
+    # Precompute heatmaps for all facilities referenced in any option group.
+    facility_names: List[str] = []
+    for day in payload.split_days:
+        for opt in day.options:
+            for fac in opt.facilities:
+                if fac not in facility_names:
+                    facility_names.append(fac)
+
+    heatmaps: Dict[str, List[List[Optional[float]]]] = {
+        fac: compute_heatmap_for_facility(fac) for fac in facility_names
+    }
+
+    results: List[SplitDayRecommendation] = []
+
+    for split_day in payload.split_days:
+        best: Optional[Dict[str, Any]] = None
+
+        for option_idx, option in enumerate(split_day.options):
+            # Skip empty options.
+            if not option.facilities:
+                continue
+
+            for day_index in range(7):
+                for hour_idx in range(18):
+                    hour = 6 + hour_idx
+
+                    # Respect user's workout window.
+                    if not (
+                        payload.preferred_start_hour
+                        <= float(hour)
+                        < payload.preferred_end_hour
+                    ):
+                        continue
+
+                    # Skip times outside base weekly hours for the facilities' buildings.
+                    # We require that at least one facility in the option is open; others
+                    # may be closed if the user does not strictly need them concurrently.
+                    if not any(
+                        is_slot_open(facility_name=fac, day_index=day_index, hour=hour)
+                        for fac in option.facilities
+                    ):
+                        continue
+
+                    # For this option at this slot, compute the max occupancy across all facilities.
+                    pct_values: List[float] = []
+                    for fac in option.facilities:
+                        heatmap = heatmaps.get(fac)
+                        if (
+                            heatmap is None
+                            or day_index >= len(heatmap)
+                            or hour_idx >= len(heatmap[day_index])
+                        ):
+                            continue
+                        cell = heatmap[day_index][hour_idx]
+                        if cell is not None:
+                            pct_values.append(float(cell))
+
+                    if not pct_values:
+                        continue
+
+                    slot_score = max(pct_values)
+
+                    if best is None or slot_score < best["score"]:
+                        best = {
+                            "score": slot_score,
+                            "day_index": day_index,
+                            "hour": hour,
+                            "option_index": option_idx,
+                            "facilities": option.facilities,
+                        }
+
+        if best is not None:
+            pct = float(best["score"])
+            results.append(
+                SplitDayRecommendation(
+                    split_label=split_day.label,
+                    option_index=best["option_index"],
+                    facilities=best["facilities"],
+                    day=best["day_index"],
+                    day_name=day_index_to_name(best["day_index"]),
+                    hour=best["hour"],
+                    hour_label=hour_to_label(best["hour"]),
+                    avg_occupancy_pct=pct,
+                    label=occupancy_to_label(pct),
+                )
+            )
 
     return results
 

@@ -9,8 +9,125 @@ const FACILITY_NAMES = [
   "PAC - 1st Floor - Functional",
   "PAC - 2nd Floor - Cardio",
   "PAC - 2nd Floor - Weight Machines",
-  "Warrior Zone"
+  "Warrior Zone",
 ];
+
+const UL_PRESET = [
+  {
+    label: "Upper",
+    options: [
+      {
+        facilities: [
+          "PAC - 1st Floor - Free Weights",
+          "PAC - 1st Floor - Functional",
+          "PAC - 2nd Floor - Weight Machines",
+        ],
+      },
+      {
+        facilities: ["CIF Fitness Centre"],
+      },
+    ],
+  },
+  {
+    label: "Lower",
+    options: [
+      {
+        facilities: [
+          "PAC - 1st Floor - Free Weights",
+          "PAC - 2nd Floor - Weight Machines",
+        ],
+      },
+      {
+        facilities: ["CIF Fitness Centre"],
+      },
+    ],
+  },
+];
+
+const PPL_PRESET = [
+  {
+    label: "Push",
+    options: [
+      {
+        facilities: [
+          "PAC - 1st Floor - Free Weights",
+          "PAC - 2nd Floor - Weight Machines",
+        ],
+      },
+      { facilities: ["CIF Fitness Centre"] },
+    ],
+  },
+  {
+    label: "Pull",
+    options: [
+      {
+        facilities: [
+          "PAC - 1st Floor - Free Weights",
+          "PAC - 2nd Floor - Weight Machines",
+        ],
+      },
+      { facilities: ["CIF Fitness Centre"] },
+    ],
+  },
+  {
+    label: "Legs",
+    options: [
+      {
+        facilities: [
+          "PAC - 1st Floor - Free Weights",
+          "PAC - 2nd Floor - Weight Machines",
+        ],
+      },
+      { facilities: ["CIF Fitness Centre"] },
+    ],
+  },
+];
+
+const FBEOD_PRESET = [
+  {
+    label: "Full Body",
+    options: [
+      {
+        facilities: [
+          "PAC - 1st Floor - Free Weights",
+          "PAC - 1st Floor - Functional",
+          "PAC - 2nd Floor - Weight Machines",
+        ],
+      },
+      { facilities: ["CIF Fitness Centre"] },
+    ],
+  },
+];
+
+const PPLUL_PRESET = [
+  {
+    label: "Push",
+    options: PPL_PRESET[0].options,
+  },
+  {
+    label: "Pull",
+    options: PPL_PRESET[1].options,
+  },
+  {
+    label: "Legs",
+    options: PPL_PRESET[2].options,
+  },
+  {
+    label: "Upper",
+    options: UL_PRESET[0].options,
+  },
+  {
+    label: "Lower",
+    options: UL_PRESET[1].options,
+  },
+];
+
+const SPLIT_PRESETS = {
+  UL: UL_PRESET,
+  PPL: PPL_PRESET,
+  FBEOD: FBEOD_PRESET,
+  PPLUL: PPLUL_PRESET,
+};
 
 function labelToDotColor(label) {
   switch (label) {
@@ -49,8 +166,10 @@ function parseHourMinuteWithMeridiem(timeText, meridiem) {
 }
 
 export default function Recommendations() {
-  const [facility, setFacility] = useState(FACILITY_NAMES[0]);
-  const [topN, setTopN] = useState(5);
+  const [splitPreset, setSplitPreset] = useState("UL");
+  const [splitDays, setSplitDays] = useState(UL_PRESET);
+  const [customSplitName, setCustomSplitName] = useState("");
+  const [savedCustomSplitName, setSavedCustomSplitName] = useState(null);
   const [startTimeText, setStartTimeText] = useState("10:00");
   const [startMeridiem, setStartMeridiem] = useState("AM");
   const [endTimeText, setEndTimeText] = useState("8:00");
@@ -85,6 +204,20 @@ export default function Recommendations() {
     };
 
     fetchHistorySummary();
+  }, []);
+
+  // Load saved custom split (if any) on first render.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("warrior-gym-custom-split-v1");
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.days) && typeof parsed.name === "string") {
+        setSavedCustomSplitName(parsed.name);
+      }
+    } catch {
+      // ignore malformed local storage
+    }
   }, []);
 
   const handleSubmit = async (e) => {
@@ -123,16 +256,15 @@ export default function Recommendations() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/recommend`, {
+      const res = await fetch(`${API_BASE}/api/recommend_split`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          facility,
           schedule_blocks: blocks,
-          top_n: topN,
+          split_days: splitDays,
           preferred_start_hour: preferredStart,
-          preferred_end_hour: preferredEnd
-        })
+          preferred_end_hour: preferredEnd,
+        }),
       });
       if (!res.ok) {
         const text = await res.text();
@@ -144,6 +276,124 @@ export default function Recommendations() {
       setError(err.message || "Failed to fetch recommendations.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePresetChange = (value) => {
+    setSplitPreset(value);
+    const preset = SPLIT_PRESETS[value];
+    if (preset) {
+      // Deep copy to allow editing without mutating the preset.
+      setSplitDays(JSON.parse(JSON.stringify(preset)));
+      if (value === "UL") setCustomSplitName("Upper / Lower");
+      else if (value === "PPL") setCustomSplitName("Push / Pull / Legs");
+      else if (value === "FBEOD") setCustomSplitName("Full Body (EOD)");
+      else if (value === "PPLUL") setCustomSplitName("PPLUL (5-day)");
+    }
+  };
+
+  const toggleFacilityInOption = (dayIndex, optionIndex, facility) => {
+    setSplitDays((prev) => {
+      const next = prev.map((d) => ({
+        label: d.label,
+        options: d.options.map((o) => ({ facilities: [...o.facilities] })),
+      }));
+      const option = next[dayIndex].options[optionIndex];
+      const exists = option.facilities.includes(facility);
+      option.facilities = exists
+        ? option.facilities.filter((f) => f !== facility)
+        : [...option.facilities, facility];
+      return next;
+    });
+  };
+
+  const updateDayLabel = (dayIndex, label) => {
+    setSplitDays((prev) =>
+      prev.map((d, idx) =>
+        idx === dayIndex ? { ...d, label } : d
+      )
+    );
+  };
+
+  const addDay = () => {
+    setSplitDays((prev) => [
+      ...prev,
+      {
+        label: "",
+        options: [{ facilities: [] }],
+      },
+    ]);
+  };
+
+  const removeDay = (dayIndex) => {
+    setSplitDays((prev) => prev.filter((_, idx) => idx !== dayIndex));
+  };
+
+  const addOptionRow = (dayIndex) => {
+    setSplitDays((prev) =>
+      prev.map((d, idx) =>
+        idx === dayIndex
+          ? { ...d, options: [...d.options, { facilities: [] }] }
+          : d
+      )
+    );
+  };
+
+  const removeOptionRow = (dayIndex, optionIndex) => {
+    setSplitDays((prev) =>
+      prev.map((d, idx) => {
+        if (idx !== dayIndex) return d;
+        const nextOptions = d.options.filter((_, oi) => oi !== optionIndex);
+        return {
+          ...d,
+          options: nextOptions.length ? nextOptions : [{ facilities: [] }],
+        };
+      })
+    );
+  };
+
+  const handleCreateSplit = () => {
+    setSplitPreset("CUSTOM");
+    setSplitDays([
+      {
+        label: "",
+        options: [{ facilities: [] }],
+      },
+    ]);
+    setCustomSplitName("");
+  };
+
+  const handleSaveCustomSplit = () => {
+    if (!customSplitName.trim() || !splitDays.length) {
+      return;
+    }
+    const payload = {
+      name: customSplitName.trim(),
+      days: splitDays,
+    };
+    try {
+      window.localStorage.setItem(
+        "warrior-gym-custom-split-v1",
+        JSON.stringify(payload)
+      );
+      setSavedCustomSplitName(payload.name);
+    } catch {
+      // ignore storage errors
+    }
+  };
+
+  const handleLoadSavedSplit = () => {
+    try {
+      const raw = window.localStorage.getItem("warrior-gym-custom-split-v1");
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.days) && typeof parsed.name === "string") {
+        setSplitPreset("CUSTOM");
+        setSplitDays(parsed.days);
+        setCustomSplitName(parsed.name);
+      }
+    } catch {
+      // ignore malformed storage
     }
   };
 
@@ -176,11 +426,11 @@ export default function Recommendations() {
 
       <div>
         <h2 className="text-[13px] font-medium text-linear-text-secondary tracking-[-0.03em]">
-          Schedule & Recommendations
+          Schedule & Split Recommendations
         </h2>
         <p className="text-[12px] text-linear-text-tertiary mt-0.5">
-          Paste your class schedule, pick a facility, and get the quietest
-          times that fit around your classes.
+          Paste your class schedule, choose a training split, and get the quietest
+          times for each day type.
         </p>
       </div>
 
@@ -205,12 +455,18 @@ export default function Recommendations() {
               Day names full or abbreviated. Times in 24-hour format.
             </p>
 
-            <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-              <div className="space-y-1 flex-1">
-                <span className="text-[11px] uppercase tracking-[0.06em] text-linear-text-tertiary">
-                  Earliest workout time
-                </span>
+          </div>
+
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <span className="text-[11px] uppercase tracking-[0.06em] text-linear-text-tertiary">
+                Workout window
+              </span>
+              <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-linear-text-tertiary w-16">
+                    Earliest
+                  </span>
                   <input
                     type="text"
                     value={startTimeText}
@@ -227,13 +483,10 @@ export default function Recommendations() {
                     <option value="PM">PM</option>
                   </select>
                 </div>
-              </div>
-
-              <div className="space-y-1 flex-1">
-                <span className="text-[11px] uppercase tracking-[0.06em] text-linear-text-tertiary">
-                  Latest workout time
-                </span>
                 <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-linear-text-tertiary w-16">
+                    Latest
+                  </span>
                   <input
                     type="text"
                     value={endTimeText}
@@ -252,54 +505,6 @@ export default function Recommendations() {
                 </div>
               </div>
             </div>
-          </div>
-
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <label
-                htmlFor="facility"
-                className="text-[11px] uppercase tracking-[0.06em] text-linear-text-tertiary"
-              >
-                Facility
-              </label>
-              <select
-                id="facility"
-                value={facility}
-                onChange={(e) => setFacility(e.target.value)}
-                className="w-full rounded-md border border-linear-border bg-linear-surface px-3 py-2 text-[13px] text-linear-text-primary focus:border-linear-text-tertiary focus:outline-none transition-colors duration-100"
-              >
-                {FACILITY_NAMES.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label
-                htmlFor="topN"
-                className="text-[11px] uppercase tracking-[0.06em] text-linear-text-tertiary"
-              >
-                Number of recommendations
-              </label>
-              <input
-                id="topN"
-                type="number"
-                min={1}
-                max={20}
-                value={topN}
-                onChange={(e) =>
-                  setTopN(
-                    Math.min(
-                      20,
-                      Math.max(1, Number.parseInt(e.target.value, 10) || 1)
-                    )
-                  )
-                }
-                className="w-24 rounded-md border border-linear-border bg-linear-surface px-3 py-2 text-[13px] text-linear-text-primary focus:border-linear-text-tertiary focus:outline-none transition-colors duration-100"
-              />
-            </div>
 
             <button
               type="submit"
@@ -311,6 +516,202 @@ export default function Recommendations() {
           </div>
         </div>
       </form>
+
+      <div className="space-y-3">
+        <div className="flex flex-wrap gap-2 items-center">
+          <button
+            type="button"
+            onClick={handleCreateSplit}
+            className="h-7 rounded px-3 text-[12px] font-medium bg-linear-text-primary text-linear-bg hover:bg-[#e5e5e5] transition-colors duration-100"
+          >
+            Create split
+          </button>
+          {savedCustomSplitName && (
+            <button
+              type="button"
+              onClick={handleLoadSavedSplit}
+              className="h-7 rounded px-3 text-[12px] border border-linear-border bg-linear-surface text-linear-text-secondary hover:bg-linear-elevated transition-colors duration-100"
+            >
+              Load "{savedCustomSplitName}"
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => handlePresetChange("UL")}
+            className={
+              "h-7 rounded px-3 text-[12px] border transition-colors duration-100 " +
+              (splitPreset === "UL"
+                ? "bg-linear-elevated text-linear-text-primary border-linear-border"
+                : "bg-linear-surface text-linear-text-secondary border-linear-border hover:bg-linear-elevated")
+            }
+          >
+            Upper / Lower
+          </button>
+          <button
+            type="button"
+            onClick={() => handlePresetChange("PPL")}
+            className={
+              "h-7 rounded px-3 text-[12px] border transition-colors duration-100 " +
+              (splitPreset === "PPL"
+                ? "bg-linear-elevated text-linear-text-primary border-linear-border"
+                : "bg-linear-surface text-linear-text-secondary border-linear-border hover:bg-linear-elevated")
+            }
+          >
+            Push / Pull / Legs
+          </button>
+          <button
+            type="button"
+            onClick={() => handlePresetChange("FBEOD")}
+            className={
+              "h-7 rounded px-3 text-[12px] border transition-colors duration-100 " +
+              (splitPreset === "FBEOD"
+                ? "bg-linear-elevated text-linear-text-primary border-linear-border"
+                : "bg-linear-surface text-linear-text-secondary border-linear-border hover:bg-linear-elevated")
+            }
+          >
+            Full Body (EOD)
+          </button>
+          <button
+            type="button"
+            onClick={() => handlePresetChange("PPLUL")}
+            className={
+              "h-7 rounded px-3 text-[12px] border transition-colors duration-100 " +
+              (splitPreset === "PPLUL"
+                ? "bg-linear-elevated text-linear-text-primary border-linear-border"
+                : "bg-linear-surface text-linear-text-secondary border-linear-border hover:bg-linear-elevated")
+            }
+          >
+            PPLUL (5-day)
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 mt-2">
+          <h3 className="text-[11px] uppercase tracking-[0.06em] text-linear-text-tertiary">
+            Split details
+          </h3>
+          <input
+            type="text"
+            value={customSplitName}
+            onChange={(e) => setCustomSplitName(e.target.value)}
+            placeholder="Split name (e.g. UL with CIF alt)"
+            className="flex-1 rounded-md border border-linear-border bg-linear-surface px-2 py-1.5 text-[12px] text-linear-text-primary focus:border-linear-text-tertiary focus:outline-none transition-colors duration-100"
+          />
+          <button
+            type="button"
+            onClick={handleSaveCustomSplit}
+            disabled={!customSplitName.trim() || !splitDays.length}
+            className="h-7 rounded px-3 text-[12px] font-medium bg-linear-surface border border-linear-border text-linear-text-secondary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-linear-elevated transition-colors duration-100"
+          >
+            Save
+          </button>
+        </div>
+        <div className="rounded-md border border-linear-border bg-linear-surface p-3 space-y-3">
+          {splitDays.map((day, dayIdx) => (
+            <div
+              key={dayIdx}
+              className="group border border-linear-border/60 rounded-md p-3 space-y-2 bg-linear-elevated/40 relative"
+            >
+              <button
+                type="button"
+                onClick={() => removeDay(dayIdx)}
+                className="absolute top-0 right-2 text-[14px] text-[#4b5563] opacity-0 group-hover:opacity-100 transition-opacity duration-100 hover:text-[#fecaca]"
+                aria-label="Remove day"
+              >
+                −
+              </button>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] uppercase tracking-[0.06em] text-linear-text-tertiary">
+                  Day {dayIdx + 1}
+                </span>
+                <input
+                  type="text"
+                  value={day.label}
+                  onChange={(e) => updateDayLabel(dayIdx, e.target.value)}
+                  className="flex-1 rounded-md border border-linear-border bg-linear-surface px-2 py-1.5 text-[13px] text-linear-text-primary focus:border-linear-text-tertiary focus:outline-none transition-colors duration-100"
+                />
+              </div>
+              <div className="space-y-2">
+                {day.options.map((opt, optIdx) => (
+                  <div key={optIdx} className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-linear-text-tertiary">
+                        Option {optIdx + 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeOptionRow(dayIdx, optIdx)}
+                        className="text-[11px] text-[#6b7280] opacity-0 group-hover:opacity-100 transition-opacity duration-100 hover:text-[#fecaca]"
+                      >
+                        Remove option
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {opt.facilities.map((fac) => (
+                        <span
+                          key={fac}
+                          className="inline-flex items-center gap-1 rounded-full bg-linear-elevated px-2 py-0.5 text-[11px] text-linear-text-secondary"
+                        >
+                          <span>{fac}</span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              toggleFacilityInOption(dayIdx, optIdx, fac)
+                            }
+                            className="text-[#6b7280] hover:text-[#fecaca]"
+                          >
+                            −
+                          </button>
+                        </span>
+                      ))}
+                      {FACILITY_NAMES.filter(
+                        (f) => !opt.facilities.includes(f)
+                      ).length > 0 && (
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              toggleFacilityInOption(
+                                dayIdx,
+                                optIdx,
+                                e.target.value
+                              );
+                              e.target.value = "";
+                            }
+                          }}
+                          className="rounded-md border border-linear-border bg-linear-surface px-2 py-1 text-[11px] text-linear-text-secondary focus:border-linear-text-tertiary focus:outline-none transition-colors duration-100"
+                        >
+                          <option value="">+ Add facility</option>
+                          {FACILITY_NAMES.filter(
+                            (f) => !opt.facilities.includes(f)
+                          ).map((fac) => (
+                            <option key={fac} value={fac}>
+                              {fac}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => addOptionRow(dayIdx)}
+                  className="mt-1 inline-flex items-center text-[11px] text-linear-text-secondary hover:text-linear-text-primary"
+                >
+                  + Add option
+                </button>
+              </div>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={addDay}
+            className="inline-flex items-center text-[12px] text-linear-text-secondary hover:text-linear-text-primary"
+          >
+            + Add day
+          </button>
+        </div>
+      </div>
 
       {error && (
         <div className="rounded-md border border-linear-border bg-linear-surface p-3 text-[13px] text-linear-text-secondary">
@@ -327,17 +728,24 @@ export default function Recommendations() {
       {recommendations.length > 0 && (
         <div>
           <h3 className="text-[11px] uppercase tracking-[0.06em] text-linear-text-tertiary mb-2">
-            Recommended time slots
+            Recommended slots per split day
           </h3>
           <ul className="rounded-md border border-linear-border bg-linear-surface overflow-hidden">
             {recommendations.map((rec, idx) => (
               <li
-                key={`${rec.day}-${rec.hour}-${idx}`}
+                key={`${rec.split_label}-${rec.day}-${rec.hour}-${idx}`}
                 className="flex items-center justify-between gap-4 px-4 py-3 text-[13px] border-b border-linear-border last:border-b-0 transition-colors duration-100 hover:bg-linear-elevated"
               >
-                <span className="text-linear-text-primary font-medium">
-                  {rec.day_name} · {rec.hour_label}
-                </span>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-linear-text-primary font-medium">
+                    {rec.split_label} · {rec.day_name} · {rec.hour_label}
+                  </span>
+                  <span className="text-[11px] text-linear-text-tertiary">
+                    {rec.facilities && rec.facilities.length
+                      ? rec.facilities.join(" + ")
+                      : "Facilities: (not specified)"}
+                  </span>
+                </div>
                 <span className="text-linear-text-secondary">
                   {Math.round(rec.avg_occupancy_pct * 10) / 10}%
                 </span>
