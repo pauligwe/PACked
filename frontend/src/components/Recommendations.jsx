@@ -56,6 +56,7 @@ const PPL_PRESET = [
       },
       { facilities: ["CIF Fitness Centre"] },
     ],
+    isRest: false,
   },
   {
     label: "Pull",
@@ -68,6 +69,7 @@ const PPL_PRESET = [
       },
       { facilities: ["CIF Fitness Centre"] },
     ],
+    isRest: false,
   },
   {
     label: "Legs",
@@ -80,6 +82,12 @@ const PPL_PRESET = [
       },
       { facilities: ["CIF Fitness Centre"] },
     ],
+    isRest: false,
+  },
+  {
+    label: "Rest",
+    options: [],
+    isRest: true,
   },
 ];
 
@@ -103,22 +111,32 @@ const PPLUL_PRESET = [
   {
     label: "Push",
     options: PPL_PRESET[0].options,
+    isRest: false,
   },
   {
     label: "Pull",
     options: PPL_PRESET[1].options,
+    isRest: false,
   },
   {
     label: "Legs",
     options: PPL_PRESET[2].options,
+    isRest: false,
+  },
+  {
+    label: "Rest",
+    options: [],
+    isRest: true,
   },
   {
     label: "Upper",
     options: UL_PRESET[0].options,
+    isRest: false,
   },
   {
     label: "Lower",
     options: UL_PRESET[1].options,
+    isRest: false,
   },
 ];
 
@@ -178,6 +196,7 @@ export default function Recommendations() {
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [hasHydratedState, setHasHydratedState] = useState(false);
 
   const [historySummary, setHistorySummary] = useState({
     totalReadings: 0,
@@ -219,6 +238,79 @@ export default function Recommendations() {
       // ignore malformed local storage
     }
   }, []);
+
+  // Load last working state for Schedule & Recommendations (tab persistence).
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(
+        "warrior-gym-schedule-state-v1"
+      );
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed) {
+        if (typeof parsed.splitPreset === "string") {
+          setSplitPreset(parsed.splitPreset);
+        }
+        if (Array.isArray(parsed.splitDays)) {
+          setSplitDays(parsed.splitDays);
+        }
+        if (typeof parsed.customSplitName === "string") {
+          setCustomSplitName(parsed.customSplitName);
+        }
+        if (typeof parsed.scheduleText === "string") {
+          setScheduleText(parsed.scheduleText);
+        }
+        if (typeof parsed.startTimeText === "string") {
+          setStartTimeText(parsed.startTimeText);
+        }
+        if (typeof parsed.startMeridiem === "string") {
+          setStartMeridiem(parsed.startMeridiem);
+        }
+        if (typeof parsed.endTimeText === "string") {
+          setEndTimeText(parsed.endTimeText);
+        }
+        if (typeof parsed.endMeridiem === "string") {
+          setEndMeridiem(parsed.endMeridiem);
+        }
+      }
+    } catch {
+      // ignore
+    }
+    setHasHydratedState(true);
+  }, []);
+
+  // Persist working state whenever key fields change.
+  useEffect(() => {
+    if (!hasHydratedState) return;
+    try {
+      const payload = {
+        splitPreset,
+        splitDays,
+        customSplitName,
+        scheduleText,
+        startTimeText,
+        startMeridiem,
+        endTimeText,
+        endMeridiem,
+      };
+      window.localStorage.setItem(
+        "warrior-gym-schedule-state-v1",
+        JSON.stringify(payload)
+      );
+    } catch {
+      // ignore
+    }
+  }, [
+    hasHydratedState,
+    splitPreset,
+    splitDays,
+    customSplitName,
+    scheduleText,
+    startTimeText,
+    startMeridiem,
+    endTimeText,
+    endMeridiem,
+  ]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -321,6 +413,7 @@ export default function Recommendations() {
       {
         label: "",
         options: [{ facilities: [] }],
+        isRest: false,
       },
     ]);
   };
@@ -358,6 +451,7 @@ export default function Recommendations() {
       {
         label: "",
         options: [{ facilities: [] }],
+        isRest: false,
       },
     ]);
     setCustomSplitName("");
@@ -530,7 +624,12 @@ export default function Recommendations() {
             <button
               type="button"
               onClick={handleLoadSavedSplit}
-              className="h-7 rounded px-3 text-[12px] border border-linear-border bg-linear-surface text-linear-text-secondary hover:bg-linear-elevated transition-colors duration-100"
+              className={
+                "h-7 rounded px-3 text-[12px] border transition-colors duration-100 " +
+                (splitPreset === "CUSTOM"
+                  ? "bg-linear-elevated text-linear-text-primary border-linear-border"
+                  : "bg-linear-surface text-linear-text-secondary border-linear-border hover:bg-linear-elevated")
+              }
             >
               Load "{savedCustomSplitName}"
             </button>
@@ -630,86 +729,107 @@ export default function Recommendations() {
                   className="flex-1 rounded-md border border-linear-border bg-linear-surface px-2 py-1.5 text-[13px] text-linear-text-primary focus:border-linear-text-tertiary focus:outline-none transition-colors duration-100"
                 />
               </div>
-              <div className="space-y-2">
-                {day.options.map((opt, optIdx) => (
-                  <div key={optIdx} className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] text-linear-text-tertiary">
-                        Option {optIdx + 1}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => removeOptionRow(dayIdx, optIdx)}
-                        className="text-[11px] text-[#6b7280] opacity-0 group-hover:opacity-100 transition-opacity duration-100 hover:text-[#fecaca]"
-                      >
-                        Remove option
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {opt.facilities.map((fac) => (
-                        <span
-                          key={fac}
-                          className="inline-flex items-center gap-1 rounded-full bg-linear-elevated px-2 py-0.5 text-[11px] text-linear-text-secondary"
-                        >
-                          <span>{fac}</span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              toggleFacilityInOption(dayIdx, optIdx, fac)
-                            }
-                            className="text-[#6b7280] hover:text-[#fecaca]"
-                          >
-                            −
-                          </button>
+              {!day.isRest && (
+                <div className="space-y-2">
+                  {day.options.map((opt, optIdx) => (
+                    <div key={optIdx} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-linear-text-tertiary">
+                          Option {optIdx + 1}
                         </span>
-                      ))}
-                      {FACILITY_NAMES.filter(
-                        (f) => !opt.facilities.includes(f)
-                      ).length > 0 && (
-                        <select
-                          value=""
-                          onChange={(e) => {
-                            if (e.target.value) {
-                              toggleFacilityInOption(
-                                dayIdx,
-                                optIdx,
-                                e.target.value
-                              );
-                              e.target.value = "";
-                            }
-                          }}
-                          className="rounded-md border border-linear-border bg-linear-surface px-2 py-1 text-[11px] text-linear-text-secondary focus:border-linear-text-tertiary focus:outline-none transition-colors duration-100"
+                        <button
+                          type="button"
+                          onClick={() => removeOptionRow(dayIdx, optIdx)}
+                          className="text-[11px] text-[#6b7280] opacity-0 group-hover:opacity-100 transition-opacity duration-100 hover:text-[#fecaca]"
                         >
-                          <option value="">+ Add facility</option>
-                          {FACILITY_NAMES.filter(
-                            (f) => !opt.facilities.includes(f)
-                          ).map((fac) => (
-                            <option key={fac} value={fac}>
-                              {fac}
-                            </option>
-                          ))}
-                        </select>
-                      )}
+                          Remove option
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {opt.facilities.map((fac) => (
+                          <span
+                            key={fac}
+                            className="inline-flex items-center gap-1 rounded-full bg-linear-elevated px-2 py-0.5 text-[11px] text-linear-text-secondary"
+                          >
+                            <span>{fac}</span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                toggleFacilityInOption(dayIdx, optIdx, fac)
+                              }
+                              className="text-[#6b7280] hover:text-[#fecaca]"
+                            >
+                              −
+                            </button>
+                          </span>
+                        ))}
+                        {FACILITY_NAMES.filter(
+                          (f) => !opt.facilities.includes(f)
+                        ).length > 0 && (
+                          <select
+                            value=""
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                toggleFacilityInOption(
+                                  dayIdx,
+                                  optIdx,
+                                  e.target.value
+                                );
+                                e.target.value = "";
+                              }
+                            }}
+                            className="rounded-md border border-linear-border bg-linear-surface px-2 py-1 text-[11px] text-linear-text-secondary focus:border-linear-text-tertiary focus:outline-none transition-colors duration-100"
+                          >
+                            <option value="">+ Add facility</option>
+                            {FACILITY_NAMES.filter(
+                              (f) => !opt.facilities.includes(f)
+                            ).map((fac) => (
+                              <option key={fac} value={fac}>
+                                {fac}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => addOptionRow(dayIdx)}
-                  className="mt-1 inline-flex items-center text-[11px] text-linear-text-secondary hover:text-linear-text-primary"
-                >
-                  + Add option
-                </button>
-              </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => addOptionRow(dayIdx)}
+                    className="mt-1 inline-flex items-center text-[11px] text-linear-text-secondary hover:text-linear-text-primary"
+                  >
+                    + Add option
+                  </button>
+                </div>
+              )}
+              {day.isRest && (
+                <p className="text-[11px] text-linear-text-tertiary italic">
+                  Rest day – no facilities used.
+                </p>
+              )}
             </div>
           ))}
-          <button
-            type="button"
-            onClick={addDay}
-            className="inline-flex items-center text-[12px] text-linear-text-secondary hover:text-linear-text-primary"
-          >
-            + Add day
-          </button>
+          <div className="flex flex-wrap gap-3 pt-1">
+            <button
+              type="button"
+              onClick={addDay}
+              className="inline-flex items-center text-[12px] text-linear-text-secondary hover:text-linear-text-primary"
+            >
+              + Add day
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setSplitDays((prev) => [
+                  ...prev,
+                  { label: "Rest", options: [], isRest: true },
+                ])
+              }
+              className="inline-flex items-center text-[12px] text-linear-text-secondary hover:text-linear-text-primary"
+            >
+              + Add rest day
+            </button>
+          </div>
         </div>
       </div>
 

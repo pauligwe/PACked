@@ -130,6 +130,7 @@ class OptionGroup(BaseModel):
 class SplitDay(BaseModel):
     label: str
     options: List[OptionGroup]
+    is_rest: bool = False
 
 
 class SplitRecommendRequest(BaseModel):
@@ -147,6 +148,7 @@ class SplitDayRecommendation(BaseModel):
     split_label: str
     option_index: int
     facilities: List[str]
+    is_rest: bool = False
     day: int
     day_name: str
     hour: int
@@ -489,7 +491,12 @@ def recommend_slots(payload: RecommendRequest) -> List[Recommendation]:
 @app.post("/api/recommend_split", response_model=List[SplitDayRecommendation])
 def recommend_split_slots(payload: SplitRecommendRequest) -> List[SplitDayRecommendation]:
     """
-    Recommend one quiet time slot per split day, taking into account:
+    Recommend a weekly schedule by cycling the split days across the week,
+    starting on Monday. For each calendar day:
+    - If the corresponding split day is a rest day, emit a Rest entry.
+    - Otherwise, choose the quietest valid hour on that calendar day.
+
+    Takes into account:
     - academic schedule blocks
     - user's preferred workout window
     - multiple facility option-groups per day
@@ -509,17 +516,41 @@ def recommend_split_slots(payload: SplitRecommendRequest) -> List[SplitDayRecomm
         fac: compute_heatmap_for_facility(fac) for fac in facility_names
     }
 
-    results: List[SplitDayRecommendation] = []
+    def build_schedule_for_start(start_day_index: int) -> Tuple[List[SplitDayRecommendation], float]:
+        """
+        Build a 7-day schedule given a starting calendar day index (0=Sunday..6=Saturday).
+        Returns (recommendations, total_occupancy_score_for_training_days).
+        """
+        schedule: List[SplitDayRecommendation] = []
+        total_score = 0.0
 
-    for split_day in payload.split_days:
-        best: Optional[Dict[str, Any]] = None
+        for day_offset in range(7):
+            target_day_index = (start_day_index + day_offset) % 7
+            split_day = payload.split_days[day_offset % len(payload.split_days)]
 
-        for option_idx, option in enumerate(split_day.options):
-            # Skip empty options.
-            if not option.facilities:
+            if split_day.is_rest:
+                schedule.append(
+                    SplitDayRecommendation(
+                        split_label=split_day.label,
+                        option_index=-1,
+                        facilities=[],
+                        is_rest=True,
+                        day=target_day_index,
+                        day_name=day_index_to_name(target_day_index),
+                        hour=12,
+                        hour_label=hour_to_label(12),
+                        avg_occupancy_pct=0.0,
+                        label="Rest",
+                    )
+                )
                 continue
 
-            for day_index in range(7):
+            best: Optional[Dict[str, Any]] = None
+
+            for option_idx, option in enumerate(split_day.options):
+                if not option.facilities:
+                    continue
+
                 for hour_idx in range(18):
                     hour = 6 + hour_idx
 
@@ -531,11 +562,13 @@ def recommend_split_slots(payload: SplitRecommendRequest) -> List[SplitDayRecomm
                     ):
                         continue
 
-                    # Skip times outside base weekly hours for the facilities' buildings.
-                    # We require that at least one facility in the option is open; others
-                    # may be closed if the user does not strictly need them concurrently.
+                    # Require at least one facility in the option to be open.
                     if not any(
-                        is_slot_open(facility_name=fac, day_index=day_index, hour=hour)
+                        is_slot_open(
+                            facility_name=fac,
+                            day_index=target_day_index,
+                            hour=hour,
+                        )
                         for fac in option.facilities
                     ):
                         continue
@@ -546,11 +579,11 @@ def recommend_split_slots(payload: SplitRecommendRequest) -> List[SplitDayRecomm
                         heatmap = heatmaps.get(fac)
                         if (
                             heatmap is None
-                            or day_index >= len(heatmap)
-                            or hour_idx >= len(heatmap[day_index])
+                            or target_day_index >= len(heatmap)
+                            or hour_idx >= len(heatmap[target_day_index])
                         ):
                             continue
-                        cell = heatmap[day_index][hour_idx]
+                        cell = heatmap[target_day_index][hour_idx]
                         if cell is not None:
                             pct_values.append(float(cell))
 
@@ -562,27 +595,39 @@ def recommend_split_slots(payload: SplitRecommendRequest) -> List[SplitDayRecomm
                     if best is None or slot_score < best["score"]:
                         best = {
                             "score": slot_score,
-                            "day_index": day_index,
+                            "day_index": target_day_index,
                             "hour": hour,
                             "option_index": option_idx,
                             "facilities": option.facilities,
                         }
 
-        if best is not None:
-            pct = float(best["score"])
-            results.append(
-                SplitDayRecommendation(
-                    split_label=split_day.label,
-                    option_index=best["option_index"],
-                    facilities=best["facilities"],
-                    day=best["day_index"],
-                    day_name=day_index_to_name(best["day_index"]),
-                    hour=best["hour"],
-                    hour_label=hour_to_label(best["hour"]),
-                    avg_occupancy_pct=pct,
-                    label=occupancy_to_label(pct),
+            if best is not None:
+                pct = float(best["score"])
+                total_score += pct
+                schedule.append(
+                    SplitDayRecommendation(
+                        split_label=split_day.label,
+                        option_index=best["option_index"],
+                        facilities=best["facilities"],
+                        is_rest=False,
+                        day=best["day_index"],
+                        day_name=day_index_to_name(best["day_index"]),
+                        hour=best["hour"],
+                        hour_label=hour_to_label(best["hour"]),
+                        avg_occupancy_pct=pct,
+                        label=occupancy_to_label(pct),
+                    )
                 )
-            )
 
-    return results
+        return schedule, total_score
+
+    # Evaluate two possible anchors: Sunday (0) and Monday (1), and pick the lower total occupancy.
+    from typing import Tuple  # type: ignore
+
+    sunday_schedule, sunday_score = build_schedule_for_start(0)
+    monday_schedule, monday_score = build_schedule_for_start(1)
+
+    if monday_score and (monday_score <= sunday_score or not sunday_schedule):
+        return monday_schedule
+    return sunday_schedule if sunday_schedule else monday_schedule
 
