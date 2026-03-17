@@ -286,7 +286,10 @@ def get_history(
     return [_row_to_reading(row) for row in rows]
 
 
-def compute_heatmap_for_facility(facility_name: str) -> List[List[Optional[float]]]:
+def compute_heatmap_for_facility(
+    facility_name: str,
+    term: Optional[str] = None,
+) -> List[List[Optional[float]]]:
     """
     Compute a 7x18 grid of average occupancy_pct values for the given facility.
     Days: 0-6 (Sunday-Saturday), Hours: 6-23 inclusive (6am–11pm local time).
@@ -312,6 +315,8 @@ def compute_heatmap_for_facility(facility_name: str) -> List[List[Optional[float
     finally:
         conn.close()
 
+    term_normalized = (term or "").lower()
+
     for row in rows:
         ts_raw = row["timestamp"]
         if not isinstance(ts_raw, str):
@@ -322,6 +327,17 @@ def compute_heatmap_for_facility(facility_name: str) -> List[List[Optional[float
                 tzinfo=timezone.utc
             )
             ts_local = ts_utc.astimezone(LOCAL_TZ)
+            month = ts_local.month
+
+            # Optional coarse term filter by calendar month:
+            # Winter: Jan–Apr (1–4), Summer: May–Aug (5–8), Fall: Sep–Dec (9–12).
+            if term_normalized in {"winter", "summer", "fall"}:
+                if term_normalized == "winter" and not (1 <= month <= 4):
+                    continue
+                if term_normalized == "summer" and not (5 <= month <= 8):
+                    continue
+                if term_normalized == "fall" and not (9 <= month <= 12):
+                    continue
             # Python weekday(): Monday=0..Sunday=6. Convert to 0=Sunday..6=Saturday.
             py_weekday = ts_local.weekday()
             day_index = (py_weekday + 1) % 7
@@ -348,12 +364,22 @@ def compute_heatmap_for_facility(facility_name: str) -> List[List[Optional[float
 
 
 @app.get("/api/heatmap/{facility_name}")
-def get_heatmap(facility_name: str) -> Dict[str, Any]:
+def get_heatmap(
+    facility_name: str,
+    term: Optional[str] = Query(
+        default=None,
+        description="Academic term filter: winter, summer, fall, or all (default all).",
+    ),
+) -> Dict[str, Any]:
     """
     Return a 7x18 grid (days 0-6, hours 6-23) of average occupancy_pct
-    for the given facility.
+    for the given facility. Optionally filter by academic term.
     """
-    heatmap = compute_heatmap_for_facility(facility_name)
+    normalized_term = (term or "").lower()
+    if normalized_term == "all" or normalized_term == "":
+        normalized_term = None
+
+    heatmap = compute_heatmap_for_facility(facility_name, term=normalized_term)
     return {
         "facility": facility_name,
         "heatmap": heatmap,

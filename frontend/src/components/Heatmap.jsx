@@ -23,6 +23,16 @@ const DAY_NAMES = [
 
 const HOURS = Array.from({ length: 18 }, (_, idx) => 6 + idx);
 
+const TERM_OPTIONS = ["Winter", "Summer", "Fall", "All"];
+
+function getCurrentTermLabel() {
+  const month = new Date().getMonth() + 1; // 1-12
+  if (month >= 1 && month <= 4) return "Winter";
+  if (month >= 5 && month <= 8) return "Summer";
+  if (month >= 9 && month <= 12) return "Fall";
+  return "All";
+}
+
 function occupancyToLabel(pct) {
   if (pct < 25) return "Very quiet";
   if (pct < 45) return "Light";
@@ -51,16 +61,21 @@ function hourLabel(hour) {
 
 export default function Heatmap() {
   const [facility, setFacility] = useState(FACILITY_NAMES[0]);
+  const [term, setTerm] = useState(getCurrentTermLabel());
   const [heatmap, setHeatmap] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [hover, setHover] = useState(null);
 
-  const fetchHeatmap = async (name) => {
+  const fetchHeatmap = async (name, termLabel) => {
     setLoading(true);
     try {
       const encoded = encodeURIComponent(name);
-      const res = await fetch(`${API_BASE}/api/heatmap/${encoded}`);
+      const termQuery =
+        termLabel && termLabel !== "All"
+          ? `?term=${encodeURIComponent(termLabel.toLowerCase())}`
+          : "";
+      const res = await fetch(`${API_BASE}/api/heatmap/${encoded}${termQuery}`);
       if (!res.ok) {
         throw new Error(`Request failed with status ${res.status}`);
       }
@@ -76,8 +91,8 @@ export default function Heatmap() {
   };
 
   useEffect(() => {
-    fetchHeatmap(facility);
-  }, [facility]);
+    fetchHeatmap(facility, term);
+  }, [facility, term]);
 
   const tooltip = useMemo(() => {
     if (!hover || !heatmap) return null;
@@ -108,25 +123,47 @@ export default function Heatmap() {
             Average occupancy by day and hour.
           </p>
         </div>
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="facility"
-            className="text-[11px] uppercase tracking-[0.06em] text-linear-text-tertiary"
-          >
-            Facility
-          </label>
-          <select
-            id="facility"
-            value={facility}
-            onChange={(e) => setFacility(e.target.value)}
-            className="min-w-[200px] rounded-md border border-linear-border bg-linear-surface px-3 py-2 text-[13px] text-linear-text-primary focus:border-linear-text-tertiary focus:outline-none transition-colors duration-100"
-          >
-            {FACILITY_NAMES.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="term"
+              className="text-[11px] uppercase tracking-[0.06em] text-linear-text-tertiary"
+            >
+              Term
+            </label>
+            <select
+              id="term"
+              value={term}
+              onChange={(e) => setTerm(e.target.value)}
+              className="min-w-[140px] rounded-md border border-linear-border bg-linear-surface px-3 py-2 text-[13px] text-linear-text-primary focus:border-linear-text-tertiary focus:outline-none transition-colors duration-100"
+            >
+              {TERM_OPTIONS.map((label) => (
+                <option key={label} value={label}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="facility"
+              className="text-[11px] uppercase tracking-[0.06em] text-linear-text-tertiary"
+            >
+              Facility
+            </label>
+            <select
+              id="facility"
+              value={facility}
+              onChange={(e) => setFacility(e.target.value)}
+              className="min-w-[200px] rounded-md border border-linear-border bg-linear-surface px-3 py-2 text-[13px] text-linear-text-primary focus:border-linear-text-tertiary focus:outline-none transition-colors duration-100"
+            >
+              {FACILITY_NAMES.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
