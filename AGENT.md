@@ -59,7 +59,7 @@ PACked is a full-stack app that scrapes live occupancy data for the University o
       - `Heatmap.jsx` – table-style heatmap (6am–11pm).
       - `Recommendations.jsx` – schedule textarea + recommendations list.
     - `utils/`
-      - `scheduleParser.js` – parse plain text schedule to `schedule_blocks`.
+      - `scheduleParser.js` – parse Quest (Waterloo) paste and/or simple lines to `schedule_blocks`.
 
 ## Key Decisions Made and Why
 - **DB timestamps**: keep SQLite `CURRENT_TIMESTAMP` (UTC) for storage; convert to local time for bucketing (prevents 6pm local appearing as 10pm bucket).

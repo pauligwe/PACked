@@ -103,11 +103,11 @@ By default, Vite serves the frontend at `http://localhost:5173`.
   - Tooltips showing exact percentage and label, or “No data yet”.
 
 - **Schedule + Recommendations View**
-  - Text area for pasting plain-text schedules like:
-    - `Monday 9:00-10:30 CS 341`
-    - `Tuesday 13:00-14:30 MATH 239`
+  - Text area for pasting **Quest (Waterloo) class schedules** (copy from Quest → Class Schedule, same workflow as UW Flow) or simple lines:
+    - Quest paste: auto-parses `Days & Times` for LEC/TST/TUT/LAB (skips TBA/online-only rows; ignores withdrawn courses); the text area is replaced with one line per block (`Weekday HH:MM–HH:MM · course · LEC/TST/…`) for easy review and editing.
+    - Manual: `Monday 9:00-10:30`, `Tuesday 13:00-14:30`, etc.
   - Client-side parser converts these to `schedule_blocks` JSON.
-  - Calls `POST /api/recommend` and displays quietest unblocked time slots.
+  - Calls `POST /api/recommend_split` and displays quietest unblocked time slots.
   - Shows a banner when fewer than 3 days of data exist in the DB:
     - “Not enough data yet for reliable recommendations — keep the scraper running! X readings collected so far.”
 

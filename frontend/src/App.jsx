@@ -60,7 +60,7 @@ export default function App() {
       >
         <div className="max-w-[1100px] w-full mx-auto px-4 flex justify-between gap-2 flex-wrap text-[11px] text-linear-text-tertiary">
           <span>PACked · Personal/educational use only.</span>
-          <span>Backend: FastAPI · Frontend: React + Vite + Tailwind</span>
+          <span>Built by Paul Chike-Igwe :)</span>
         </div>
       </footer>
     </div>

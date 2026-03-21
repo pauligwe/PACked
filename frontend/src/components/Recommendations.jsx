@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { parseSchedule } from "../utils/scheduleParser.js";
+import {
+  isLikelyQuestSchedule,
+  parseQuestScheduleRich,
+  parseSchedule,
+  serializeScheduleBlocks,
+} from "../utils/scheduleParser.js";
 
 const API_BASE = "http://localhost:8000";
 
@@ -317,10 +322,15 @@ export default function Recommendations() {
     setError(null);
     setRecommendations([]);
 
-    const blocks = parseSchedule(scheduleText);
+    const blocksRaw = parseSchedule(scheduleText);
+    const blocks = blocksRaw.map(({ day, start_hour, end_hour }) => ({
+      day,
+      start_hour,
+      end_hour,
+    }));
     if (!blocks.length) {
       setError(
-        "Could not detect any valid schedule lines. Use format like 'Monday 9:00-10:30 CS 341'."
+        "Could not find any class times. Paste your Quest Class Schedule (with Days & Times), or use lines like 'Monday 9:00-10:30'."
       );
       return;
     }
@@ -369,6 +379,15 @@ export default function Recommendations() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSchedulePaste = (e) => {
+    const text = e.clipboardData?.getData("text/plain");
+    if (!text || !isLikelyQuestSchedule(text)) return;
+    const rich = parseQuestScheduleRich(text);
+    if (!rich.length) return;
+    e.preventDefault();
+    setScheduleText(serializeScheduleBlocks(rich));
   };
 
   const handlePresetChange = (value) => {
@@ -523,8 +542,8 @@ export default function Recommendations() {
           Schedule & Split Recommendations
         </h2>
         <p className="text-[12px] text-linear-text-tertiary mt-0.5">
-          Paste your class schedule, choose a training split, and get the quietest
-          times for each day type.
+          Paste your Quest schedule (or simple lines), choose a training split, and
+          get the quietest times for each day type.
         </p>
       </div>
 
@@ -535,18 +554,31 @@ export default function Recommendations() {
               htmlFor="schedule"
               className="text-[11px] uppercase tracking-[0.06em] text-linear-text-tertiary"
             >
-              Class schedule
+              Class schedule (Quest paste)
             </label>
+            <p className="text-[12px] text-linear-text-secondary leading-relaxed rounded-md border border-linear-border bg-linear-surface/50 px-3 py-2">
+              <span className="font-mono text-[11px] text-linear-text-tertiary">
+                Quest
+              </span>{" "}
+              → <em>Class Schedule</em> → select your term → select all text on the
+              page and paste it here (same idea as UW Flow).
+            </p>
             <textarea
               id="schedule"
-              rows={6}
+              rows={10}
               className="w-full rounded-md border border-linear-border-alt bg-linear-surface px-3 py-2 text-[13px] text-linear-text-primary font-mono focus:border-linear-text-tertiary focus:outline-none transition-colors duration-100"
-              placeholder={`One class per line, e.g.\nMonday 9:00-10:30 CS 341\nTuesday 13:00-14:30 MATH 239`}
+              placeholder={`Paste from Quest — we’ll shrink it to one line per class:\nMonday 14:30-15:50 CS 136 LEC\n\nOr type/edit lines like that (24h times).`}
               value={scheduleText}
               onChange={(e) => setScheduleText(e.target.value)}
+              onPaste={handleSchedulePaste}
             />
             <p className="text-[11px] text-linear-text-tertiary">
-              Day names full or abbreviated. Times in 24-hour format.
+              After a Quest paste, the box shows{" "}
+              <span className="font-mono text-linear-text-secondary">
+                day · 24h start-end · course · section type
+              </span>{" "}
+              so you can confirm and edit. Manual lines work too (optional course code
+              at the end).
             </p>
 
           </div>
@@ -854,9 +886,9 @@ export default function Recommendations() {
             {recommendations.map((rec, idx) => (
               <li
                 key={`${rec.split_label}-${rec.day}-${rec.hour}-${idx}`}
-                className="flex items-center justify-between gap-4 px-4 py-3 text-[13px] border-b border-linear-border last:border-b-0 transition-colors duration-100 hover:bg-linear-elevated"
+                className="grid grid-cols-[minmax(0,1fr)_5.5rem_10.5rem] items-center gap-x-4 px-4 py-3 text-[13px] border-b border-linear-border last:border-b-0 transition-colors duration-100 hover:bg-linear-elevated"
               >
-                <div className="flex flex-col gap-0.5">
+                <div className="flex min-w-0 flex-col gap-0.5">
                   <span className="text-linear-text-primary font-medium">
                     {rec.split_label} · {rec.day_name} · {rec.hour_label}
                   </span>
@@ -866,20 +898,27 @@ export default function Recommendations() {
                       : "Facilities: (not specified)"}
                   </span>
                 </div>
-                <span className="text-linear-text-secondary">
+                <span className="text-left tabular-nums text-linear-text-secondary">
                   {Math.round(rec.avg_occupancy_pct * 10) / 10}%
                 </span>
-                <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-linear-text-tertiary">
+                <div className="flex min-w-0 items-center gap-2">
                   <span
-                    className="rounded-full flex-shrink-0"
-                    style={{
-                      width: 6,
-                      height: 6,
-                      backgroundColor: labelToDotColor(rec.label),
-                    }}
-                  />
-                  {rec.label}
-                </span>
+                    className="inline-flex h-4 w-4 shrink-0 items-center justify-center"
+                    aria-hidden
+                  >
+                    <span
+                      className="rounded-full"
+                      style={{
+                        width: 6,
+                        height: 6,
+                        backgroundColor: labelToDotColor(rec.label),
+                      }}
+                    />
+                  </span>
+                  <span className="min-w-0 truncate text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-linear-text-tertiary">
+                    {rec.label}
+                  </span>
+                </div>
               </li>
             ))}
           </ul>
