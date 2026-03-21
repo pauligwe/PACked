@@ -58,7 +58,7 @@ def get_db_connection() -> sqlite3.Connection:
     return conn
 
 
-app = FastAPI(title="Warrior Gym Tracker API")
+app = FastAPI(title="PACked API")
 
 origins = [
     "http://localhost:5173",
@@ -377,8 +377,12 @@ def compute_heatmap_for_facility(
             day_index = (py_weekday + 1) % 7
             hour = ts_local.hour
             if 6 <= hour <= 23 and is_slot_open(facility_name, day_index, hour):
+                pct_val = float(row["occupancy_pct"])
+                # Do not count 0% readings toward the bucket average (treat as no signal).
+                if pct_val <= 0:
+                    continue
                 hour_idx = hour - 6  # 0..17
-                sums[day_index][hour_idx] += float(row["occupancy_pct"])
+                sums[day_index][hour_idx] += pct_val
                 counts[day_index][hour_idx] += 1
         except (TypeError, ValueError):
             continue
@@ -389,12 +393,22 @@ def compute_heatmap_for_facility(
         for h_idx in range(18):
             if counts[d][h_idx] > 0:
                 avg = sums[d][h_idx] / counts[d][h_idx]
-                row_vals.append(avg)
+                row_vals.append(float(avg))
             else:
                 row_vals.append(None)
         heatmap.append(row_vals)
 
     return heatmap
+
+
+def compute_closed_grid(facility_name: str) -> List[List[bool]]:
+    """
+    7x18 grid: True when the facility is closed for that local (day, hour) slot.
+    """
+    return [
+        [not is_slot_open(facility_name, d, 6 + h_idx) for h_idx in range(18)]
+        for d in range(7)
+    ]
 
 
 @app.get("/api/heatmap/{facility_name}")
@@ -414,9 +428,11 @@ def get_heatmap(
         normalized_term = None
 
     heatmap = compute_heatmap_for_facility(facility_name, term=normalized_term)
+    closed = compute_closed_grid(facility_name)
     return {
         "facility": facility_name,
         "heatmap": heatmap,
+        "closed": closed,
     }
 
 

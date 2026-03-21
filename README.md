@@ -1,6 +1,6 @@
-# Warrior Gym Tracker
+# PACked
 
-Warrior Gym Tracker is a full-stack project for the University of Waterloo Warrior Athletics facilities. It continuously scrapes live occupancy data from the official Facility Occupancy page, stores it in a local SQLite database, and uses that historical data to power an API and frontend that recommend the quietest times to work out around a student's class schedule.
+PACked is a full-stack project for the University of Waterloo Warrior Athletics facilities. It continuously scrapes live occupancy data from the official Facility Occupancy page, stores it in a local SQLite database, and uses that historical data to power an API and frontend that recommend the quietest times to work out around a student's class schedule.
 
 ## Architecture Overview
 

@@ -63,6 +63,7 @@ export default function Heatmap() {
   const [facility, setFacility] = useState(FACILITY_NAMES[0]);
   const [term, setTerm] = useState(getCurrentTermLabel());
   const [heatmap, setHeatmap] = useState(null);
+  const [closedGrid, setClosedGrid] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [hover, setHover] = useState(null);
@@ -81,10 +82,12 @@ export default function Heatmap() {
       }
       const data = await res.json();
       setHeatmap(data.heatmap || null);
+      setClosedGrid(Array.isArray(data.closed) ? data.closed : null);
       setError(null);
     } catch (err) {
       setError(err.message || "Failed to load heatmap.");
       setHeatmap(null);
+      setClosedGrid(null);
     } finally {
       setLoading(false);
     }
@@ -99,6 +102,13 @@ export default function Heatmap() {
     const { day, hourIdx } = hover;
     const hour = 6 + hourIdx;
     const pct = heatmap?.[day]?.[hourIdx];
+    const isClosed = closedGrid?.[day]?.[hourIdx] === true;
+    if (isClosed) {
+      return {
+        title: `${DAY_NAMES[day]} ${hourLabel(hour)}`,
+        subtitle: "Closed"
+      };
+    }
     if (pct == null) {
       return {
         title: `${DAY_NAMES[day]} ${hourLabel(hour)}`,
@@ -110,7 +120,7 @@ export default function Heatmap() {
       title: `${DAY_NAMES[day]} ${hourLabel(hour)}`,
       subtitle: `${rounded}% · ${occupancyToLabel(pct)}`
     };
-  }, [hover, heatmap]);
+  }, [hover, heatmap, closedGrid]);
 
   return (
     <div className="space-y-4">
@@ -297,6 +307,13 @@ export default function Heatmap() {
             }}
           />
           Packed
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            className="rounded-full bg-linear-elevated"
+            style={{ width: 6, height: 6 }}
+          />
+          Closed
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span

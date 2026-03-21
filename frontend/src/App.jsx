@@ -20,7 +20,7 @@ export default function App() {
       >
         <div className="max-w-[1100px] w-full mx-auto px-4 flex items-center justify-between">
           <span className="text-[14px] font-semibold text-linear-text-primary tracking-[-0.03em]">
-            Warrior Gym Tracker
+            PACked
           </span>
           <nav className="flex items-center gap-6">
             {TABS.map((tab) => (
@@ -59,7 +59,7 @@ export default function App() {
         style={{ backgroundColor: "#0F0F0F" }}
       >
         <div className="max-w-[1100px] w-full mx-auto px-4 flex justify-between gap-2 flex-wrap text-[11px] text-linear-text-tertiary">
-          <span>Warrior Gym Tracker · Personal/educational use only.</span>
+          <span>PACked · Personal/educational use only.</span>
           <span>Backend: FastAPI · Frontend: React + Vite + Tailwind</span>
         </div>
       </footer>

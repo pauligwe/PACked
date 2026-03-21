@@ -1,4 +1,4 @@
-Warrior Gym Tracker is a full-stack app that scrapes live occupancy data for the University of Waterloo Warrior Athletics facilities, stores it over time in a local SQLite database, and provides an API + React frontend for live status, historical heatmaps, and “best time to go” recommendations based on a student’s class schedule.
+PACked is a full-stack app that scrapes live occupancy data for the University of Waterloo Warrior Athletics facilities, stores it over time in a local SQLite database, and provides an API + React frontend for live status, historical heatmaps, and “best time to go” recommendations based on a student’s class schedule.
 
 ## AGENT.md Protocol
 - **Every agent must read `AGENT.md` first** at the start of a session.
@@ -24,13 +24,14 @@ Warrior Gym Tracker is a full-stack app that scrapes live occupancy data for the
 - **Frontend**
   - Implemented the 3 views (`LiveView`, `Heatmap`, `Recommendations`) and schedule parser.
   - Full **Linear.app-inspired visual redesign**: Inter font, near-black palette, sharper corners, minimal chrome, status dots, and table-style heatmap.
+  - **Heatmap**: **0% readings are not counted** toward bucket averages (only `occupancy_pct > 0` contributes). If a bucket has no qualifying readings, the cell is empty (`null`). **`GET /api/heatmap/...` includes `closed` (7×18 booleans)**; hover shows **“Closed”** for closed hours and **“No data yet”** for open hours with no data.
 
 ## What Is In Progress (exactly where left)
 - Running `python3 scraper/scheduler.py` to collect data over weeks.
 
 ## What Is Next in the Queue
 1. **Facility-hours exceptions (date-specific)**: model special closures/exam hour ranges from the official hours page and enforce them (right now only weekly hours are enforced).
-2. Improve heatmap UX to optionally indicate “Closed” vs “No data” (backend currently filters closed slots out; UI just renders null as subtle empty).
+2. Optional: distinct legend styles for “Closed” vs “No data” (tooltip already distinguishes).
 
 ## Blockers or Open Questions
 - **Facility hours change**: the code does **not** auto-scrape `Facility_Hours.aspx` for updates; weekly hours are hard-coded and will require manual updates until exceptions scraping is implemented.
