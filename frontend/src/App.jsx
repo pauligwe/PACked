@@ -59,8 +59,7 @@ export default function App() {
         style={{ backgroundColor: "#0F0F0F" }}
       >
         <div className="max-w-[1100px] w-full mx-auto px-4 flex justify-between gap-2 flex-wrap text-[11px] text-linear-text-tertiary">
-          <span>PACked · Personal/educational use only.</span>
-          <span>Built by Paul Chike-Igwe :)</span>
+          <span>Built by Paul Chike-Igwe</span>
         </div>
       </footer>
     </div>

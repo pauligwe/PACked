@@ -24,7 +24,7 @@ PACked is a full-stack app that scrapes live occupancy data for the University o
 - **Frontend**
   - Implemented the 3 views (`LiveView`, `Heatmap`, `Recommendations`) and schedule parser.
   - Full **Linear.app-inspired visual redesign**: Inter font, near-black palette, sharper corners, minimal chrome, status dots, and table-style heatmap.
-  - **Heatmap**: **0% readings are not counted** toward bucket averages (only `occupancy_pct > 0` contributes). If a bucket has no qualifying readings, the cell is empty (`null`). **`GET /api/heatmap/...` includes `closed` (7×18 booleans)**; hover shows **“Closed”** for closed hours and **“No data yet”** for open hours with no data.
+  - **Heatmap**: **0% readings count as 0%** in bucket averages (empty gym is real data). If a bucket has **no** readings at all, the cell is empty (`null`). **`GET /api/heatmap/...` includes `closed` (7×18 booleans)**; hover shows **“Closed”** for closed hours and **“No data yet”** only when there are no scrapes for that slot.
 
 ## What Is In Progress (exactly where left)
 - Running `python3 scraper/scheduler.py` to collect data over weeks.

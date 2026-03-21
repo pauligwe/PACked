@@ -378,9 +378,7 @@ def compute_heatmap_for_facility(
             hour = ts_local.hour
             if 6 <= hour <= 23 and is_slot_open(facility_name, day_index, hour):
                 pct_val = float(row["occupancy_pct"])
-                # Do not count 0% readings toward the bucket average (treat as no signal).
-                if pct_val <= 0:
-                    continue
+                # Include 0% in the average (empty gym counts as real data, not "no readings").
                 hour_idx = hour - 6  # 0..17
                 sums[day_index][hour_idx] += pct_val
                 counts[day_index][hour_idx] += 1

@@ -543,7 +543,7 @@ export default function Recommendations() {
         </h2>
         <p className="text-[12px] text-linear-text-tertiary mt-0.5">
           Paste your Quest schedule (or simple lines), choose a training split, and
-          get the quietest times for each day type.
+          get your recommended schedule.
         </p>
       </div>
 
@@ -567,20 +567,11 @@ export default function Recommendations() {
               id="schedule"
               rows={10}
               className="w-full rounded-md border border-linear-border-alt bg-linear-surface px-3 py-2 text-[13px] text-linear-text-primary font-mono focus:border-linear-text-tertiary focus:outline-none transition-colors duration-100"
-              placeholder={`Paste from Quest — we’ll shrink it to one line per class:\nMonday 14:30-15:50 CS 136 LEC\n\nOr type/edit lines like that (24h times).`}
+              placeholder={`Paste everything off Quest:\nMonday 14:30-15:50 CS 136 LEC\n\nOr type/edit lines just like above (24h times).`}
               value={scheduleText}
               onChange={(e) => setScheduleText(e.target.value)}
               onPaste={handleSchedulePaste}
             />
-            <p className="text-[11px] text-linear-text-tertiary">
-              After a Quest paste, the box shows{" "}
-              <span className="font-mono text-linear-text-secondary">
-                day · 24h start-end · course · section type
-              </span>{" "}
-              so you can confirm and edit. Manual lines work too (optional course code
-              at the end).
-            </p>
-
           </div>
 
           <div className="space-y-3">
