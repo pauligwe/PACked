@@ -20,6 +20,7 @@ const FACILITY_NAMES = [
 const UL_PRESET = [
   {
     label: "Upper",
+    isRest: false,
     options: [
       {
         facilities: [
@@ -32,6 +33,7 @@ const UL_PRESET = [
   },
   {
     label: "Lower",
+    isRest: false,
     options: [
       {
         facilities: [
@@ -40,6 +42,11 @@ const UL_PRESET = [
         ],
       },
     ],
+  },
+  {
+    label: "Rest",
+    options: [],
+    isRest: true,
   },
 ];
 
@@ -90,6 +97,7 @@ const PPL_PRESET = [
 const FBEOD_PRESET = [
   {
     label: "Full Body",
+    isRest: false,
     options: [
       {
         facilities: [
@@ -99,6 +107,11 @@ const FBEOD_PRESET = [
         ],
       },
     ],
+  },
+  {
+    label: "Rest",
+    options: [],
+    isRest: true,
   },
 ];
 
@@ -386,9 +399,10 @@ export default function Recommendations() {
     if (preset) {
       // Deep copy to allow editing without mutating the preset.
       setSplitDays(JSON.parse(JSON.stringify(preset)));
-      if (value === "UL") setCustomSplitName("Upper / Lower");
+      if (value === "UL") setCustomSplitName("Upper / Lower / Rest");
       else if (value === "PPL") setCustomSplitName("Push / Pull / Legs");
-      else if (value === "FBEOD") setCustomSplitName("Full Body (EOD)");
+      else if (value === "FBEOD")
+        setCustomSplitName("Full Body / Rest (EOD)");
       else if (value === "PPLUL") setCustomSplitName("PPLUL (5-day)");
     }
   };
@@ -397,6 +411,7 @@ export default function Recommendations() {
     setSplitDays((prev) => {
       const next = prev.map((d) => ({
         label: d.label,
+        isRest: Boolean(d.isRest),
         options: d.options.map((o) => ({ facilities: [...o.facilities] })),
       }));
       const option = next[dayIndex].options[optionIndex];

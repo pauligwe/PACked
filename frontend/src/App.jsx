@@ -15,7 +15,7 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col bg-linear-bg">
       <header
-        className="w-full h-11 flex items-center border-b border-linear-border"
+        className="w-full min-h-[3.5rem] flex items-center border-b border-linear-border py-2.5 sm:min-h-[3.75rem] sm:py-3"
         style={{ backgroundColor: "#0F0F0F" }}
       >
         <div className="max-w-[1100px] w-full mx-auto px-4 flex items-center justify-between">
