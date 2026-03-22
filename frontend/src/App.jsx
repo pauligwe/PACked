@@ -62,9 +62,25 @@ export default function App() {
 
       <main className="flex-1 min-w-0">
         <div className="max-w-[1100px] w-full min-w-0 mx-auto px-4 py-6">
-          {activeTab === "live" && <LiveView />}
-          {activeTab === "heatmap" && <Heatmap />}
-          {activeTab === "recommendations" && <Recommendations />}
+          {/* Keep all panels mounted so Heatmap/Schedule don’t refetch on every tab switch. */}
+          <div
+            className={activeTab === "live" ? "block" : "hidden"}
+            aria-hidden={activeTab !== "live"}
+          >
+            <LiveView isActive={activeTab === "live"} />
+          </div>
+          <div
+            className={activeTab === "heatmap" ? "block" : "hidden"}
+            aria-hidden={activeTab !== "heatmap"}
+          >
+            <Heatmap />
+          </div>
+          <div
+            className={activeTab === "recommendations" ? "block" : "hidden"}
+            aria-hidden={activeTab !== "recommendations"}
+          >
+            <Recommendations />
+          </div>
         </div>
       </main>
 
