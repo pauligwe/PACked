@@ -22,7 +22,7 @@ PACked is a full-stack project for the University of Waterloo Warrior Athletics 
 - **Frontend** (`frontend/`):
   - React + Vite + Tailwind CSS single-page app.
   - Views:
-    - **Live View** – current occupancy for all six facilities, auto-refreshing.
+    - **Live** – current occupancy for all six facilities, auto-refreshing.
     - **Heatmap View** – historical occupancy heatmap by day/hour for a selected facility.
     - **Schedule + Recommendations View** – paste your class schedule, select a facility, and see recommended quiet times.
 
@@ -91,7 +91,7 @@ By default, Vite serves the frontend at `http://localhost:5173`.
 
 ## Frontend Features (Planned)
 
-- **Live View**
+- **Live**
   - Grid of cards, one per facility.
   - Shows percentage occupancy, raw count vs max, and a qualitative label (Very quiet → Packed).
   - Auto-refreshes every 2 minutes.

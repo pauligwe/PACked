@@ -3,12 +3,12 @@ import React, { useEffect, useMemo, useState } from "react";
 const API_BASE = "http://localhost:8000";
 
 const FACILITY_NAMES = [
-  "CIF Fitness Centre",
   "PAC - 1st Floor - Free Weights",
   "PAC - 1st Floor - Functional",
   "PAC - 2nd Floor - Cardio",
   "PAC - 2nd Floor - Weight Machines",
-  "Warrior Zone"
+  "Warrior Zone",
+  "CIF Fitness Centre"
 ];
 
 const DAY_NAMES = [
@@ -123,7 +123,7 @@ export default function Heatmap() {
   }, [hover, heatmap, closedGrid]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 min-w-0">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
           <h2 className="text-[13px] font-medium text-linear-text-secondary tracking-[-0.03em]">
@@ -189,19 +189,20 @@ export default function Heatmap() {
       )}
 
       {heatmap && (
-        <div className="overflow-x-auto">
-          <div className="min-w-[640px] inline-block">
+        <div className="w-full min-w-0 overflow-x-hidden">
+          <div className="w-full min-w-0">
             <div
-              className="grid gap-px text-[11px]"
+              className="grid w-full min-w-0 gap-px text-[9px] leading-tight sm:text-[11px] sm:leading-normal"
               style={{
-                gridTemplateColumns: "auto repeat(7, minmax(0, 1fr))",
+                gridTemplateColumns:
+                  "minmax(0, auto) repeat(7, minmax(0, 1fr))",
               }}
             >
               <div />
               {DAY_NAMES.map((day) => (
                 <div
                   key={day}
-                  className="py-2 text-center uppercase tracking-[0.06em] text-linear-text-tertiary"
+                  className="py-1 text-center uppercase tracking-[0.06em] text-linear-text-tertiary sm:py-2"
                 >
                   {day.slice(0, 3)}
                 </div>
@@ -210,8 +211,7 @@ export default function Heatmap() {
               {HOURS.map((hour, hourIdx) => (
                 <React.Fragment key={hour}>
                   <div
-                    className="flex items-center justify-end pr-3 text-linear-text-muted"
-                    style={{ height: 32 }}
+                    className="flex h-5 shrink-0 items-center justify-end whitespace-nowrap pr-1 text-linear-text-muted tabular-nums sm:h-8 sm:pr-3"
                   >
                     {hourLabel(hour)}
                   </div>
@@ -221,9 +221,8 @@ export default function Heatmap() {
                       <button
                         key={`${dayIdx}-${hourIdx}`}
                         type="button"
-                        className="rounded-[3px] transition-colors duration-100 hover:opacity-90"
+                        className="h-5 min-h-0 min-w-0 w-full rounded-[2px] transition-colors duration-100 hover:opacity-90 sm:h-8 sm:rounded-[3px]"
                         style={{
-                          height: 32,
                           backgroundColor: colorForPct(pct),
                         }}
                         onMouseEnter={() =>

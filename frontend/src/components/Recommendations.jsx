@@ -28,9 +28,6 @@ const UL_PRESET = [
           "PAC - 2nd Floor - Weight Machines",
         ],
       },
-      {
-        facilities: ["CIF Fitness Centre"],
-      },
     ],
   },
   {
@@ -41,9 +38,6 @@ const UL_PRESET = [
           "PAC - 1st Floor - Free Weights",
           "PAC - 2nd Floor - Weight Machines",
         ],
-      },
-      {
-        facilities: ["CIF Fitness Centre"],
       },
     ],
   },
@@ -59,7 +53,6 @@ const PPL_PRESET = [
           "PAC - 2nd Floor - Weight Machines",
         ],
       },
-      { facilities: ["CIF Fitness Centre"] },
     ],
     isRest: false,
   },
@@ -72,7 +65,6 @@ const PPL_PRESET = [
           "PAC - 2nd Floor - Weight Machines",
         ],
       },
-      { facilities: ["CIF Fitness Centre"] },
     ],
     isRest: false,
   },
@@ -85,7 +77,6 @@ const PPL_PRESET = [
           "PAC - 2nd Floor - Weight Machines",
         ],
       },
-      { facilities: ["CIF Fitness Centre"] },
     ],
     isRest: false,
   },
@@ -107,7 +98,6 @@ const FBEOD_PRESET = [
           "PAC - 2nd Floor - Weight Machines",
         ],
       },
-      { facilities: ["CIF Fitness Centre"] },
     ],
   },
 ];
@@ -244,7 +234,7 @@ export default function Recommendations() {
     }
   }, []);
 
-  // Load last working state for Schedule & Recommendations (tab persistence).
+  // Load last working state for Schedule (tab persistence).
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(
@@ -821,7 +811,7 @@ export default function Recommendations() {
                     onClick={() => addOptionRow(dayIdx)}
                     className="mt-1 inline-flex items-center text-[11px] text-linear-text-secondary hover:text-linear-text-primary"
                   >
-                    + Add option
+                    + Add alternative
                   </button>
                 </div>
               )}
