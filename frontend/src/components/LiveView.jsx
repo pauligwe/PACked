@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
-
-const API_BASE = "http://localhost:8000";
+import { API_BASE } from "../apiBase.js";
 
 function occupancyToLabel(pct) {
   if (pct < 25) return "Very quiet";

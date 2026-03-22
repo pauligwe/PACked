@@ -6,7 +6,7 @@ import {
   serializeScheduleBlocks,
 } from "../utils/scheduleParser.js";
 
-const API_BASE = "http://localhost:8000";
+import { API_BASE } from "../apiBase.js";
 
 const FACILITY_NAMES = [
   "CIF Fitness Centre",
