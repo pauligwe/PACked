@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
-
-const API_BASE = "http://localhost:8000";
+import { API_BASE } from "../apiBase.js";
 
 function occupancyToLabel(pct) {
   if (pct < 25) return "Very quiet";
@@ -34,12 +33,15 @@ function labelToBarColor(label) {
   return labelToDotColor(label);
 }
 
-export default function LiveView() {
+export default function LiveView({ isActive = true }) {
   const [readings, setReadings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Only poll while this tab is visible — saves API calls when you’re on Heatmap / Schedule.
   useEffect(() => {
+    if (!isActive) return undefined;
+
     let mounted = true;
 
     const fetchLive = async () => {
@@ -66,7 +68,7 @@ export default function LiveView() {
       mounted = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [isActive]);
 
   if (loading) {
     return (

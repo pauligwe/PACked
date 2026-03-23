@@ -6,7 +6,7 @@ import {
   serializeScheduleBlocks,
 } from "../utils/scheduleParser.js";
 
-const API_BASE = "http://localhost:8000";
+import { API_BASE } from "../apiBase.js";
 
 const FACILITY_NAMES = [
   "CIF Fitness Centre",
@@ -20,6 +20,7 @@ const FACILITY_NAMES = [
 const UL_PRESET = [
   {
     label: "Upper",
+    isRest: false,
     options: [
       {
         facilities: [
@@ -28,13 +29,11 @@ const UL_PRESET = [
           "PAC - 2nd Floor - Weight Machines",
         ],
       },
-      {
-        facilities: ["CIF Fitness Centre"],
-      },
     ],
   },
   {
     label: "Lower",
+    isRest: false,
     options: [
       {
         facilities: [
@@ -42,10 +41,12 @@ const UL_PRESET = [
           "PAC - 2nd Floor - Weight Machines",
         ],
       },
-      {
-        facilities: ["CIF Fitness Centre"],
-      },
     ],
+  },
+  {
+    label: "Rest",
+    options: [],
+    isRest: true,
   },
 ];
 
@@ -59,7 +60,6 @@ const PPL_PRESET = [
           "PAC - 2nd Floor - Weight Machines",
         ],
       },
-      { facilities: ["CIF Fitness Centre"] },
     ],
     isRest: false,
   },
@@ -72,7 +72,6 @@ const PPL_PRESET = [
           "PAC - 2nd Floor - Weight Machines",
         ],
       },
-      { facilities: ["CIF Fitness Centre"] },
     ],
     isRest: false,
   },
@@ -85,7 +84,6 @@ const PPL_PRESET = [
           "PAC - 2nd Floor - Weight Machines",
         ],
       },
-      { facilities: ["CIF Fitness Centre"] },
     ],
     isRest: false,
   },
@@ -99,6 +97,7 @@ const PPL_PRESET = [
 const FBEOD_PRESET = [
   {
     label: "Full Body",
+    isRest: false,
     options: [
       {
         facilities: [
@@ -107,8 +106,12 @@ const FBEOD_PRESET = [
           "PAC - 2nd Floor - Weight Machines",
         ],
       },
-      { facilities: ["CIF Fitness Centre"] },
     ],
+  },
+  {
+    label: "Rest",
+    options: [],
+    isRest: true,
   },
 ];
 
@@ -244,7 +247,7 @@ export default function Recommendations() {
     }
   }, []);
 
-  // Load last working state for Schedule & Recommendations (tab persistence).
+  // Load last working state for Schedule (tab persistence).
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(
@@ -396,9 +399,10 @@ export default function Recommendations() {
     if (preset) {
       // Deep copy to allow editing without mutating the preset.
       setSplitDays(JSON.parse(JSON.stringify(preset)));
-      if (value === "UL") setCustomSplitName("Upper / Lower");
+      if (value === "UL") setCustomSplitName("Upper / Lower / Rest");
       else if (value === "PPL") setCustomSplitName("Push / Pull / Legs");
-      else if (value === "FBEOD") setCustomSplitName("Full Body (EOD)");
+      else if (value === "FBEOD")
+        setCustomSplitName("Full Body / Rest (EOD)");
       else if (value === "PPLUL") setCustomSplitName("PPLUL (5-day)");
     }
   };
@@ -407,6 +411,7 @@ export default function Recommendations() {
     setSplitDays((prev) => {
       const next = prev.map((d) => ({
         label: d.label,
+        isRest: Boolean(d.isRest),
         options: d.options.map((o) => ({ facilities: [...o.facilities] })),
       }));
       const option = next[dayIndex].options[optionIndex];
@@ -821,7 +826,7 @@ export default function Recommendations() {
                     onClick={() => addOptionRow(dayIdx)}
                     className="mt-1 inline-flex items-center text-[11px] text-linear-text-secondary hover:text-linear-text-primary"
                   >
-                    + Add option
+                    + Add alternative
                   </button>
                 </div>
               )}
