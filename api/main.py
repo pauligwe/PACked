@@ -2,8 +2,12 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import time
 from datetime import datetime, timedelta, timezone
+from threading import Lock
 from typing import Any, Dict, List, Optional
+
+from scraper.scraper import fetch_live_readings as scrape_live_occupancy
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,6 +17,13 @@ from zoneinfo import ZoneInfo
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(BASE_DIR, "occupancy.db")
+
+# Live tab: scrape upstream on a timer instead of reading SQLite. Cache avoids hammering
+# the site when several clients poll together; TTL matches the frontend refresh interval.
+_LIVE_CACHE_LOCK = Lock()
+_live_cache_expires_monotonic: float = 0.0
+_live_cache_readings: list = []
+LIVE_SCRAPE_CACHE_TTL_SEC = int(os.environ.get("LIVE_SCRAPE_CACHE_SEC", "300"))
 
 # Local timezone for bucketing/labels (Waterloo, Ontario).
 LOCAL_TZ = ZoneInfo("America/Toronto")
@@ -248,43 +259,46 @@ def _row_to_reading(row: sqlite3.Row) -> Reading:
 @app.get("/api/occupancy/live", response_model=List[LiveReading])
 def get_live_readings() -> List[LiveReading]:
     """
-    Return the most recent reading for each facility.
+    Scrape the Warrior Facility Occupancy page for current readings.
+
+    Results are cached for LIVE_SCRAPE_CACHE_TTL_SEC (default 300s) so the frontend
+    can poll every few minutes without duplicate upstream requests.
     """
-    if not os.path.exists(DB_PATH):
-        return []
+    global _live_cache_expires_monotonic, _live_cache_readings
 
-    conn = get_db_connection()
-    try:
-        # Using a subquery to get the latest id (and thus latest timestamp) per facility_id.
-        rows = conn.execute(
-            """
-            SELECT r.*
-            FROM readings r
-            JOIN (
-                SELECT facility_id, MAX(id) AS max_id
-                FROM readings
-                GROUP BY facility_id
-            ) latest
-            ON r.facility_id = latest.facility_id AND r.id = latest.max_id
-            ORDER BY r.facility_name
-            """
-        ).fetchall()
-    finally:
-        conn.close()
+    now_m = time.monotonic()
+    with _LIVE_CACHE_LOCK:
+        if _live_cache_readings and now_m < _live_cache_expires_monotonic:
+            return _live_cache_readings
 
-    return [
-        LiveReading(
-            facility_name=row["facility_name"],
-            facility_id=row["facility_id"],
-            occupancy_pct=row["occupancy_pct"],
-            occupancy_count=row["occupancy_count"],
-            max_capacity=row["max_capacity"],
-            timestamp=datetime.fromisoformat(row["timestamp"].replace(" ", "T")).replace(
-                tzinfo=timezone.utc
+    records = scrape_live_occupancy()
+    scraped_at = datetime.now(timezone.utc)
+
+    if records:
+        readings = sorted(
+            (
+                LiveReading(
+                    facility_name=r["facility_name"],
+                    facility_id=r["facility_id"],
+                    occupancy_pct=float(r["occupancy_pct"]),
+                    occupancy_count=int(r["occupancy_count"]),
+                    max_capacity=int(r["max_capacity"]),
+                    timestamp=scraped_at,
+                )
+                for r in records
             ),
+            key=lambda x: x.facility_name,
         )
-        for row in rows
-    ]
+        with _LIVE_CACHE_LOCK:
+            _live_cache_readings = readings
+            _live_cache_expires_monotonic = time.monotonic() + LIVE_SCRAPE_CACHE_TTL_SEC
+        return readings
+
+    with _LIVE_CACHE_LOCK:
+        if _live_cache_readings:
+            return _live_cache_readings
+
+    return []
 
 
 @app.get("/api/occupancy/history", response_model=List[Reading])

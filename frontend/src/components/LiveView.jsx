@@ -63,7 +63,7 @@ export default function LiveView({ isActive = true }) {
     };
 
     fetchLive();
-    const interval = setInterval(fetchLive, 2 * 60 * 1000);
+    const interval = setInterval(fetchLive, 5 * 60 * 1000);
     return () => {
       mounted = false;
       clearInterval(interval);
@@ -92,8 +92,8 @@ export default function LiveView({ isActive = true }) {
   if (!readings.length) {
     return (
       <div className="rounded-md border border-linear-border bg-linear-surface p-4 text-[13px] text-linear-text-secondary">
-        No readings yet. Start the scraper scheduler and give it some time to
-        collect data.
+        No live occupancy could be loaded. The Warrior site may be down or the
+        page layout may have changed.
       </div>
     );
   }

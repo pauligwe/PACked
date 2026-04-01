@@ -238,6 +238,18 @@ def save_readings(records: List[Dict[str, Any]]) -> None:
         conn.close()
 
 
+def fetch_live_readings() -> List[Dict[str, Any]]:
+    """
+    Fetch the occupancy page and parse all facilities without writing to the database.
+    Returns an empty list if the page cannot be fetched or no facilities were parsed.
+    """
+    html = fetch_page()
+    if html is None:
+        return []
+    records = parse_readings(html)
+    return records
+
+
 def run_scrape() -> None:
     """Fetch the occupancy page, parse all facilities, and write readings to SQLite."""
     init_db()
