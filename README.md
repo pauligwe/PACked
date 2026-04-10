@@ -1,3 +1,7 @@
+
+
+https://github.com/user-attachments/assets/0304e2c3-71d3-4832-a554-c7afc4781f2b
+
 # PACked
 
 PACked is a full-stack project for the University of Waterloo Warrior Athletics facilities. It continuously scrapes live occupancy data from the official Facility Occupancy page, stores it in a local SQLite database, and uses that historical data to power an API and frontend that recommend the quietest times to work out around a student's class schedule.
